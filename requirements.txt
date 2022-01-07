@@ -1,0 +1,11 @@
+# rl
+torch==1.7.1
+mpi4py
+
+# env
+gym==0.16.0
+ale-py==0.7.3
+
+# util
+opencv-python
+matplotlib
