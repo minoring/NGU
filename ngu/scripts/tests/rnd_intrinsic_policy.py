@@ -1,4 +1,7 @@
-"""Train NGU model."""
+"""To test RND intrinsic bonus, analyze to performance on Montezuma Revenge environment.
+The policy is driven only by intrinsic bonus, in the absence of any extrinsic reward.
+Performance is measured by mean episodic return, and the number of rooms the agent finds over the training run.
+"""
 from itertools import count
 
 import torch
@@ -6,11 +9,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 import ngu.utils.pytorch_util as ptu
-from ngu.models.ngu import NGUAgent
 from ngu.utils.args import get_args
 from ngu.envs.utils import make_vec_envs
 from ngu.envs.atari import atari_env_hypr
 from ngu.utils.random_util import set_global_seed
+from ngu.models.lifelong_novelty import RNDAgent
 from ngu.models import model_hypr
 
 
@@ -19,18 +22,21 @@ def main():
     set_global_seed(args.seed)
     ptu.init_device()
 
+    # Create environment. Tale a look at RND Appendix A.3 for the environment hyperparameters.
+    env_hypr = atari_env_hypr.copy()
+    env_hypr['sticky_actions'] = True
+    env_hypr['random_noops_range'] = 0
     env = make_vec_envs(
-        env_id='MontezumaRevengeNoFrameskip-v4', # TODO(minho): Make other environment work as well.
-        num_env=args.num_actors,  # RND Appendix A.4
+        env_id='MontezumaRevengeNoFrameskip-v4',
+        num_env=32,  # RND Appendix A.4
         seed=args.seed,
         device=ptu.device,
-        env_hypr=atari_env_hypr)
+        env_hypr=env_hypr)
 
     act_dim = env.action_space.n  # Atari has discrete action space.
     obs_dim = env.observation_space.shape
-
-    ngu_agent = NGUAgent(act_dim, obs_dim)
-    ngu_agent.to(ptu.device)
+    rnd_agent = RNDAgent(act_dim, obs_dim)
+    rnd_agent.to(ptu.device)
 
     # Initialize optimizer
     optimizer = optim.Adam(rnd_agent.parameters(),

@@ -1,0 +1,1 @@
+from ngu.models.intrinsic_novelty.intrinsic_novelty import IntrinsicNovelty

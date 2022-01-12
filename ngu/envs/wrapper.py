@@ -1,6 +1,8 @@
-# code derived from
+"""Gym Environment wrappers"""
+# Code reference
 # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/envs.py
 # https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_frame_stack.py
+from copy import copy
 
 import numpy as np
 import gym
@@ -166,3 +168,67 @@ class StickyActionEnv(gym.Wrapper):
         self.last_action = action
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
+
+
+class MontezumaInfoWrapper(gym.Wrapper):
+
+    def __init__(self, env, room_address):
+        super(MontezumaInfoWrapper, self).__init__(env)
+        self.room_address = room_address
+        self.visited_rooms = set()
+
+    def get_current_room(self):
+        ram = self.env.unwrapped.ale.getRAM()
+        assert len(ram) == 128
+        return int(ram[self.room_address])
+
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        self.visited_rooms.add(self.get_current_room())
+        if done:
+            if 'episode' not in info:
+                info['episode'] = {}
+            info['episode'].update(visited_rooms=copy(self.visited_rooms))
+            self.visited_rooms.clear()
+        return obs, rew, done, info
+
+    def reset(self):
+        return self.env.reset()
+
+
+class DummyMontezumaInfoWrapper(gym.Wrapper):
+
+    def __init__(self, env):
+        super(DummyMontezumaInfoWrapper, self).__init__(env)
+
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        if done:
+            if 'episode' not in info:
+                info['episode'] = {}
+            info['episode'].update(pos_count=0, visited_rooms=set([0]))
+        return obs, rew, done, info
+
+    def reset(self):
+        return self.env.reset()
+
+
+class EpisodicReturnWrapper(gym.Wrapper):
+
+    def __init__(self, env):
+        super(EpisodicReturnWrapper, self).__init__(env)
+        self.rewards = []
+        self.ep_ret = 0
+        self.ep_len = 0
+
+    def reset(self, **kwargs):
+        self.rewards = []
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        self.rewards.append(rew)
+        if done:
+            self.ep_ret = sum(self.rewards)
+            self.ep_len = len(self.rewards)
+        return obs, rew, done, info

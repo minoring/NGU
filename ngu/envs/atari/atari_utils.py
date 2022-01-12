@@ -2,24 +2,32 @@ import gym
 
 from stable_baselines3.common.atari_wrappers import (ClipRewardEnv, FireResetEnv, MaxAndSkipEnv,
                                                      NoopResetEnv, WarpFrame)
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from ngu.envs.atari.atari_wrapper import (StickyActionEnv, TransposeImage, VecNormalize, VecPyTorch,
-                                          VecPyTorchFrameStack)
+from ngu.envs.wrapper import (DummyMontezumaInfoWrapper, MontezumaInfoWrapper, StickyActionEnv,
+                              TransposeImage, EpisodicReturnWrapper)
 
 
-def make_atari_env(env_id, seed, rank, hypr):
+def make_atari_env(env_id, seed, rank, env_hypr):
 
     def _thunk():
         env = gym.make(env_id)
         assert 'NoFrameskip' in env.spec.id
         env.seed(seed + rank)  # Each parellel environment will have different seed.
 
-        env._max_episode_steps = hypr['max_episode_steps'] * hypr['num_action_repeats']
-        env = NoopResetEnv(env, noop_max=hypr['random_noops_range'])  # For random initial state.
-        env = MaxAndSkipEnv(env, skip=hypr['num_action_repeats'])  # Frame skip.
+        env = EpisodicReturnWrapper(env)
 
-        if hypr['sticky_actions']:
+        env._max_episode_steps = env_hypr['max_episode_steps'] * env_hypr['num_action_repeats']
+        if env_hypr['random_noops_range'] > 0:
+            env = NoopResetEnv(env,
+                               noop_max=env_hypr['random_noops_range'])  # For random initial state.
+        env = MaxAndSkipEnv(env, skip=env_hypr['frames_max_pooled'])  # Frame skip.
+
+        if "Montezuma" in env_id or "Pitfall" in env_id:
+            env = MontezumaInfoWrapper(env, room_address=3 if "Montezuma" in env_id else 1)
+        else:
+            env = DummyMontezumaInfoWrapper(env)
+
+        if env_hypr['sticky_actions']:
             env = StickyActionEnv(env)  # Add some randomness by sticky action.
 
         if "FIRE" in env.unwrapped.get_action_meanings():
@@ -36,26 +44,3 @@ def make_atari_env(env_id, seed, rank, hypr):
         return env
 
     return _thunk
-
-
-def make_atari_vec_envs(env_id, num_env, seed, device, hypr):
-    """Create a wrapped, preprocessed, vectorized parallel environments of Atari.
-
-    Args:
-        env_id: OpenAI Gym environment ID.
-        num_env: The number of parallel environments.
-        seed: Random seed for the environments.
-        device: PyTorch tensor device.
-        hypr: Hyperparams for preprocessing.
-    Returns:
-        Vectorized parallel environment.
-    """
-    envs = [make_atari_env(env_id, seed, i, hypr) for i in range(num_env)]
-    envs = SubprocVecEnv(envs) if len(envs) > 1 else DummyVecEnv(envs)
-    envs = VecNormalize(envs, norm_reward=False)
-    envs = VecPyTorch(envs, device)
-
-    if hypr['num_stacked_frame'] > 1:
-        envs = VecPyTorchFrameStack(envs, hypr['num_stacked_frame'], device)
-
-    return envs

@@ -1,0 +1,2 @@
+from ngu.envs.atari.atari_env_hypr import atari_env_hypr
+from ngu.envs.classic_control.classic_control_env_hypr import classic_control_env_hypr
