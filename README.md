@@ -3,6 +3,8 @@
 THE NEVER-GIVE-UP INTRINSIC REWARD
 ![](docs/reward.png)
 
+R2D2 in synchronous way.
+
 DOCS TODO:
 Instruction to install
 - roms
@@ -11,3 +13,4 @@ Instruction to install
 - mujoco
 - requirements.txt
 - pip3 install -e .
+- baselines

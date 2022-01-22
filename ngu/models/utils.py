@@ -8,9 +8,10 @@ def conv2d_out(input_size, kernel_size, stride, padding=0):
 
 def reward_transform(x, eps=0.001):
     """Instead of reward clipping, use an inverted value function rescaling"""
-    return x.sign() * ((torch.sqrt(torch.abs(x) + 1) - 1) + 0.001 * x)
+    return x.sign() * ((torch.sqrt(torch.abs(x) + 1.0) - 1.0) + 0.001 * x)
 
 
 def reward_transform_inverted(x, eps=0.001):
     """Inverted version of reward_transform."""
-    return x.sign() * (((torch.sqrt(1 + 4 * eps * (torch.abs(x) + 1 + eps)) - 1) / (2 * eps)) - 1)
+    return x.sign() * (((torch.sqrt(1.0 + 4.0 * eps * (torch.abs(x) + 1.0 + eps)) - 1.0) /
+                        (2.0 * eps)) - 1.0)

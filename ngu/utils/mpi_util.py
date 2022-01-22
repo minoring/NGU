@@ -48,8 +48,11 @@ class RunningMeanStd(object):
     def update(self, x):
         if self.use_mpi:
             batch_mean, batch_std, batch_count = mpi_moments(x, axis=0, comm=self.comm)
-        else:
+        elif isinstance(x, np.ndarray) and len(x.shape) >= 1:
             batch_mean, batch_std, batch_count = np.mean(x, axis=0), np.std(x, axis=0), x.shape[0]
+        else:
+            # Case where 1D array or scalar input.
+            batch_mean, batch_std, batch_count = x, x, 1
         batch_var = np.square(batch_std)
         self.update_from_moments(batch_mean, batch_var, batch_count)
 

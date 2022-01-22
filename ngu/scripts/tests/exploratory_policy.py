@@ -16,13 +16,13 @@ def main():
     set_global_seed(args.seed)
 
     env = make_vec_envs(env_id='MontezumaRevengeNoFrameskip-v4',
-                        num_env=args.num_actors,
+                        num_env=args.n_actors,
                         seed=args.seed,
                         device='cpu',
                         hypr=atari_env_hypr)
     env.reset()
     while True:
-        obs, rew, done, info = env.step(torch.zeros((args.num_actors, 1),
+        obs, rew, done, info = env.step(torch.zeros((args.n_actors, 1),
                                                     dtype=torch.uint8))  # Dummmy action.
 
 

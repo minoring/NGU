@@ -1,4 +1,5 @@
 """Utility functions for environment."""
+import gym
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from ngu.envs.wrapper import VecNormalize, VecPyTorch, VecPyTorchFrameStack
@@ -26,6 +27,9 @@ def make_vec_envs(env_id, num_env, seed, device, env_hypr, logger=None):
 
     if env_hypr['num_stacked_frame'] > 1:
         envs = VecPyTorchFrameStack(envs, env_hypr['num_stacked_frame'], device)
+
+    assert isinstance(envs.action_space,
+                      gym.spaces.Discrete), "This project only support discrete action space."
 
     return envs
 

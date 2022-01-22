@@ -1,25 +1,23 @@
-from abc import ABC, abstractclassmethod
+import random
 from collections import namedtuple
 
+from ngu.models.common.type import Sequence
 
-class ReplayMemory(ABC):
 
-    @abstractclassmethod
-    def insert(self, transitions):
-        raise NotImplementedError
+class ReplayMemory:
 
-    @abstractclassmethod
+    def __init__(self, replay_capacity):
+        self.memory = []
+        self.next_idx = 0
+        self.replay_capacity = replay_capacity
+
+    def insert(self, sequence: Sequence):
+        self.memory[self.next_idx] = sequence
+        self.next_idx = (self.next_idx + 1) % self.replay_capacity
+
     def sample(self, batch_size):
-        raise NotImplementedError
+        idxs = random.choice(range(self.replay_capacity), batch_size)
+        return idxs
 
-    @abstractclassmethod
     def __len__(self):
-        raise NotImplementedError
-
-
-Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
-# Collect sequences of length 80 timesteos, where adjacent overlap by 40 time-steps.
-# The sequences never cross boundaries.
-# Additionally, we store in the replay the value of the beta_i (intrinsic_factor) used by actor
-# as well as the initial recurrent state.
-Sequence = namedtuple('Sequence', ('trainsitions', 'initial_recurrent_state', 'intrinsic_factor'))
+        return len(self.memory)

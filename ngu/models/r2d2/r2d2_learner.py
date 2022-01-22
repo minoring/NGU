@@ -10,23 +10,22 @@ class R2D2Learner:
     introduced in NGU paper.
     """
 
-    def __init__(self, act_dim, obs_dim, replay_memory, model_hypr):
+    def __init__(self, n_act, obs_shape, replay_memory, model_hypr):
         """
         Args:
-            act_dim: Action dimension
-            obs_dim: Observation dimension (3 channel image shape expected.)
-            replay_memory: Replay memory containing experiences learner will train.
-            model_hypr: Hyperparameters (batch_size, learning_rate, etc.)
+            n_act: Action dimension.
+            obs_shape: Observation dimension (3 channel image shape expected).
+            replay_memory: Prioritized replay memory that actors fill in experience.
+            model_hypr: Hyperparameters (batch_size, learning_rate, etc.).
         """
-        self.act_dim = act_dim
-        self.obs_dim = obs_dim
+        self.n_act = n_act
+        self.obs_shape = obs_shape
         self.replay_memory = replay_memory
         self.model_hypr = model_hypr
         # Initialize Policy Neural Net
-        self.policy = DuelingLSTM(act_dim, obs_dim, model_hypr)
-        self.target = DuelingLSTM(act_dim, obs_dim, model_hypr)
+        self.policy = DuelingLSTM(n_act, obs_shape, model_hypr)
+        self.target = DuelingLSTM(n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
-        # TODO(minho): Beta decay...?
         self.optimizer = optim.Adam(self.policy.parameters(),
                                     lr=model_hypr['learning_rate_r2d2'],
                                     betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
@@ -34,13 +33,25 @@ class R2D2Learner:
         # TODO(minho): Make sure grad clip.
         self.update_count = 0  # Count how many times the policy updated.
 
-    def update(self):
-        """Update policy parameters given memory is collected."""
-        if len(self.replay_memory) < self.model_hypr['minimum_sequences_to_start_replay']:
-            return
+    def update(self, batch_sequences):
+        """Update policy parameters given memory is collected.
 
-        self.update_count += 0
+        Args:
+            batch_sequences: Batch of sequence to train.
+        """
+        # TODO(minho): Implement learner.
+        loss = self.loss(batch_sequences)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.update_count += 1
+        if self.update_count % self.model_hypr['target_q_update_period']:
+            self.target.load_state_dict(self.policy.state_dict())
 
     def to(self, device):
         self.policy.to(device)
         self.target.to(device)
+
+    def loss(self, samples):
+        pass

@@ -1,7 +1,8 @@
 import gym
 
-from stable_baselines3.common.atari_wrappers import (ClipRewardEnv, FireResetEnv, MaxAndSkipEnv,
+from stable_baselines3.common.atari_wrappers import (FireResetEnv, MaxAndSkipEnv,
                                                      NoopResetEnv, WarpFrame)
+from stable_baselines3.common.monitor import Monitor
 
 from ngu.envs.wrapper import (DummyMontezumaInfoWrapper, MontezumaInfoWrapper, StickyActionEnv,
                               TransposeImage, EpisodicReturnWrapper)
@@ -14,6 +15,7 @@ def make_atari_env(env_id, seed, rank, env_hypr):
         assert 'NoFrameskip' in env.spec.id
         env.seed(seed + rank)  # Each parellel environment will have different seed.
 
+        env = Monitor(env, filename='log.monitor')
         env = EpisodicReturnWrapper(env)
 
         env._max_episode_steps = env_hypr['max_episode_steps'] * env_hypr['num_action_repeats']
@@ -36,7 +38,6 @@ def make_atari_env(env_id, seed, rank, env_hypr):
         obs_shape = env.observation_space.shape
         assert len(obs_shape) == 3  # 3 channel image expected.
         env = WarpFrame(env, width=84, height=84)
-        env = ClipRewardEnv(env)  # Reward clipping to have same hyperparameter across many games.
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
         if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
             env = TransposeImage(env, op=[2, 0, 1])

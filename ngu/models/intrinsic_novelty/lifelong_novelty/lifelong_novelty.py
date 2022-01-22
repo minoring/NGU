@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import torch.optim as optim
 
+import ngu.utils.pytorch_util as ptu
 from ngu.models.intrinsic_novelty.lifelong_novelty.rnd_prediction import RNDPrediction
 from ngu.models.model_hypr import model_hypr
 from ngu.utils.mpi_util import RunningMeanStd
@@ -14,17 +16,27 @@ class LifelongNovelty(nn.Module):
     neural net (target) and trained one (predictor).
     """
 
-    def __init__(self, obs_dim=(1, 84, 84), model_hypr=model_hypr):
+    def __init__(self, obs_shape=(1, 84, 84), model_hypr=model_hypr):
         super(LifelongNovelty, self).__init__()
-        self.obs_dim = obs_dim
+        self.obs_shape = obs_shape
         self.model_hypr = model_hypr
-        self.ll_rms = RunningMeanStd()
+        # In order to keep the the rewards on a consistent scale,
+        # we normalize the intrinsic reward by dividing it by a running estimate of the
+        # standard deviations of the intrinsic returns.
+        # Burda et al., 2018.
+        self.ll_rms = RunningMeanStd(use_mpi=False)
 
-        self.predictor = RNDPrediction(obs_dim, model_hypr)
-        self.target = RNDPrediction(obs_dim, model_hypr)
+        self.predictor = RNDPrediction(obs_shape, model_hypr)
+        self.target = RNDPrediction(obs_shape, model_hypr)
 
+        # Freeze target network.
         for param in self.target.parameters():
             param.requires_grad = False
+
+        self.optimizer = optim.Adam(self.predictor.parameters(),
+                                    lr=model_hypr['learning_rate_rnd'],
+                                    betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
+                                    eps=model_hypr['adam_epsilon'])
 
     def forward(self, obs):
         predictor_feature = self.predictor(obs)
@@ -32,11 +44,19 @@ class LifelongNovelty(nn.Module):
 
         return predictor_feature, target_feature
 
+    @torch.no_grad()
     def compute_lifelong_curiosity(self, obs):
+        obs = obs.to(ptu.device)
         predictor_feature, target_feature = self(obs)
-        err = torch.pow(predictor_feature - target_feature, 2).sum()
+        err = ptu.to_numpy(torch.pow(predictor_feature - target_feature, 2)).mean(axis=1)
+        self.ll_rms.update(err)  # Update running mean and variance.
+        # NGU paper Section 2.
         modulator = 1 + (err - self.ll_rms.mean) / np.sqrt(self.ll_rms.var)
-        return modulator
+        return torch.from_numpy(modulator)
+
+    # TODO(minho): Implement this.
+    def step(self, batch_obs):
+        pass
 
     def to(self, device):
         self.predictor.to(device)

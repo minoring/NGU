@@ -24,15 +24,15 @@ def main():
                         device=ptu.device,
                         hypr=atari_env_hypr)
     env.reset()
-    act_dim = env.action_space.n
-    obs_dim = env.observation_space.shape
+    n_act = env.action_space.n
+    obs_shape = env.observation_space.shape
 
     # Initialize replay memory that actors and a learner will share.
     # Convert it into PrioritizedReplayMemory.
     replay_memory = UniformReplayMemory(model_hypr['replay_capacity'])
     # Initialize actor and learner.
-    actor = R2D2Actor(act_dim, obs_dim, replay_memory, model_hypr, env, args.num_env)
-    learner = R2D2Learner(act_dim, obs_dim, replay_memory, model_hypr)
+    actor = R2D2Actor(n_act, obs_shape, replay_memory, model_hypr, env, args.num_env)
+    learner = R2D2Learner(n_act, obs_shape, replay_memory, model_hypr)
 
     while True:
         actor.collect_step()
