@@ -66,8 +66,11 @@ class LifelongNovelty(nn.Module):
             self.optimizer.step()
             loss_avg = loss_avg + (1 / (t + 1)) * (loss.item() - loss_avg)
         print("RND Loss: {:.4f}".format(loss_avg))
+
         self.update_count += 1
         self.logger.log_scalar('RNDLoss', loss_avg, self.update_count)
+        self.logger.log_scalar('LifelongNoveltyMean', self.ll_rms.mean, self.update_count)
+        self.logger.log_scalar('LifelongNoveltyVar', self.ll_rms.var, self.update_count)
 
     def to(self, device):
         self.predictor.to(device)

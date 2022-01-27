@@ -1,9 +1,8 @@
-import os
 import argparse
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Never Give Up')
+    parser = argparse.ArgumentParser(description='Never Give Up!')
     parser.add_argument('--env-id',
                         help='Environment ID to create (default: MontezumaRevengeNoFrameskip-v4)',
                         default='MontezumaRevengeNoFrameskip-v4')
@@ -15,8 +14,12 @@ def get_args():
     parser.add_argument('--no-gpu', action='store_true', help='Whether not to use gpu')
     parser.add_argument(
         '--model-save-interval',
-        help='How many learning steps before saving the trained model. (default: 100)',
-        default=100)
+        type=int,
+        help='How many learning steps before saving the trained model. (default: 1000)',
+        default=1000)
+    parser.add_argument('--video-save-interval',
+                        type=int,
+                        help='How many steps to train before save the video.')
     args = parser.parse_args()
 
     return args

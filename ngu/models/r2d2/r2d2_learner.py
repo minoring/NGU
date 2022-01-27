@@ -7,7 +7,7 @@ from ngu.models.r2d2.dueling_lstm import DuelingLSTM
 class R2D2Learner:
     """R2D2 Learner. Learner is trained consuming experiences collected by multiple actors.
     Modified version of Recurrent Experience Replay in Distributed Reinforcement Learning (Kapturowski et al., 2019),
-    introduced in NGU paper.
+    as introduced in the NGU paper.
     """
 
     def __init__(self, n_act, obs_shape, replay_memory, model_hypr, logger):
@@ -32,7 +32,10 @@ class R2D2Learner:
                                     lr=model_hypr['learning_rate_r2d2'],
                                     betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
                                     eps=model_hypr['adam_epsilon'])
-        self.update_count = 0  # Count how many times the policy updated.
+        for param in self.target.parameters():
+            param.requires_grad = False
+
+        self.update_count = 0
 
     def step(self, td_errors, weights):
         """Update policy parameters given memory is collected.
@@ -49,7 +52,8 @@ class R2D2Learner:
         print("R2D2 Learner Loss: {:.4f}".format(loss.item()))
         self.update_count += 1
         self.logger.log_scalar('R2D2Loss', loss.item(), self.update_count)
-        self.logger.log_scalar('R2D2WeightMean', weights.mean().item(), self.update_count)
+        self.logger.log_scalar('R2D2ISWeightMean', weights.mean().item(), self.update_count)
+        self.logger.log_scalar('R2D2ISWeightVar', weights.var().item(), self.update_count)
 
     def to(self, device):
         self.policy.to(device)

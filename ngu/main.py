@@ -49,6 +49,10 @@ def main():
             save_path = os.path.join(trained_model_dir, model_name)
             torch.save(ngu_agent.r2d2_learner.policy.state_dict(), save_path)
 
+        if (args.video_save_interval is not None and param_update_count % args.video_save_interval == 0):
+            pass
+
+
 
 if __name__ == '__main__':
     main()

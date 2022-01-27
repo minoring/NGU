@@ -27,6 +27,7 @@ class EpisodicNovelty:
         # Running average of the Euclidean distance.
         # This is to make learnt embedding less sensitive to the specific task we are solving.
         self.ed_rms = RunningMeanStd((self.model_hypr['num_neighbors'], ))
+        self.epi_novel_rms = RunningMeanStd() # Running mean standard deviation of episodic novelty.
         self.capacity = model_hypr['episodic_memory_capacity']
         self.episodic_memory = torch.zeros(
             (self.capacity, self.n_actors, self.controllable_state_dim))
@@ -77,6 +78,9 @@ class EpisodicNovelty:
         # Insert controllable state into episodic memory.
         self.insert_state(controllable_state)
 
+        # Update running mean, std of episodic novelty.
+        self.epi_novel_rms.update(r_intrinsic.numpy())
+
         return r_intrinsic
 
     def insert_state(self, controllable_state):
@@ -86,9 +90,12 @@ class EpisodicNovelty:
 
     def step(self, timestep_seq):
         self.embedding.step(timestep_seq)
+
         self.update_count += 1
-        self.logger.log_scalar('EuclideanDistanceMean', self.ed_rms.mean.mean(), self.update_count)
-        self.logger.log_scalar('EuclideanDistanceVar', self.ed_rms.var.mean(), self.update_count)
+        self.logger.log_scalar('EpisodicNoveltyMean', self.epi_novel_rms.mean, self.update_count)
+        self.logger.log_scalar('EpisodicNoveltyVar', self.epi_novel_rms.mean, self.update_count)
+        self.logger.log_scalar('KNeighborEucDistMean', self.ed_rms.mean.mean(), self.update_count)
+        self.logger.log_scalar('KNeighborEucDistVar', self.ed_rms.var.mean(), self.update_count)
 
     def to(self, device):
         self.embedding.to(device)

@@ -1,5 +1,6 @@
 import torch
 
+from ngu.utils.mpi_util import RunningMeanStd
 from ngu.models.intrinsic_novelty.lifelong_novelty import LifelongNovelty
 from ngu.models.intrinsic_novelty.episodic_novelty import EpisodicNovelty
 
@@ -12,7 +13,9 @@ class IntrinsicNovelty:
         self.logger = logger
         self.ll_novel = LifelongNovelty(obs_shape, model_hypr, logger)
         self.epi_novel = EpisodicNovelty(n_actors, n_act, obs_shape, model_hypr, logger)
-        self.max_rew = 5. # NGU paper Equ 1. It was 'L' in the paper.
+        self.max_rew = 5.  # NGU paper Equ 1. It was 'L' in the paper.
+        self.intrinsic_novel_rms = RunningMeanStd()
+        self.update_count = 0
 
     def compute_intrinsic_novelty(self, obs):
         batch_size = len(obs)
@@ -25,7 +28,10 @@ class IntrinsicNovelty:
         greater_than_max = r_ll > torch.full((batch_size, ), self.max_rew)
         r_ll[greater_than_max] = torch.full((1, ), self.max_rew)
 
-        return (r_epi * r_ll).unsqueeze(-1)
+        intrinsic_novelty = (r_epi * r_ll).unsqueeze(-1)
+        self.intrinsic_novel_rms.update(intrinsic_novelty.numpy())
+
+        return intrinsic_novelty
 
     def reset_memory_if_done(self, done):
         """Reset the agent's memory if it is done."""
@@ -44,3 +50,9 @@ class IntrinsicNovelty:
         """
         self.ll_novel.step(timestep_seq)
         self.epi_novel.step(timestep_seq)
+        self.update_count += 1
+
+        self.logger.log_scalar('IntrinsicNoveltyMean', self.intrinsic_novel_rms.mean,
+                               self.update_count)
+        self.logger.log_scalar('IntrinsicNoveltyVar', self.intrinsic_novel_rms.var,
+                               self.update_count)
