@@ -5,7 +5,6 @@ import ngu.utils.pytorch_util as ptu
 from ngu.models.ngu import NGUAgent
 from ngu.utils.args import get_args
 from ngu.envs.utils import make_vec_envs
-from ngu.envs.atari import atari_env_hypr
 from ngu.utils.random_util import set_global_seed
 from ngu.models import model_hypr
 from ngu.utils.logger import Logger
@@ -20,7 +19,7 @@ def main():
                          num_env=args.n_actors,
                          seed=args.seed,
                          device='cpu',
-                         env_hypr=atari_env_hypr)
+                         monitor_root=args.monitor_root)
     n_act = envs.action_space.n
     obs_shape = envs.observation_space.shape
 
@@ -29,15 +28,9 @@ def main():
     ngu_agent.to(ptu.device)
 
     ngu_agent.collect_minimum_sequences()  # Collect minimum experience to run replay.
-
-    for num_param_updates in count():
-        ngu_agent.collect()  # Each parallel actors collect a sequence.
-        ngu_agent.step()  # Update parameters single step.
-
-        # TODO(minho): How to calculate return and visited room for parallel environment.
-        # print(f"The number of parameter updates: {num_param_updates}")
-        # print("Loss: {:.4f}".format(loss.item()))
-        # print("Num visited rooms: {}") # TODO(minho): Check this one.
+    for param_update_count in count():
+        ngu_agent.collect_sequence()  # Each parallel actors collect a sequence.
+        ngu_agent.step(param_update_count)  # Update parameters single step.
 
 
 if __name__ == '__main__':

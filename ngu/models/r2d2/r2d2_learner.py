@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ngu.models.r2d2.dueling_lstm import DuelingLSTM
+import ngu.utils.pytorch_util as ptu
 
 
 class R2D2Learner:
@@ -30,28 +31,25 @@ class R2D2Learner:
                                     lr=model_hypr['learning_rate_r2d2'],
                                     betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
                                     eps=model_hypr['adam_epsilon'])
-        # TODO(minho): Make sure grad clip.
         self.update_count = 0  # Count how many times the policy updated.
 
-    def update(self, batch_sequences):
+    def step(self, td_errors, weights):
         """Update policy parameters given memory is collected.
 
         Args:
-            batch_sequences: Batch of sequence to train.
+            td_errors: TD-error between the policy and the target.
+            weights: Weights of importance sampling.
         """
-        # TODO(minho): Implement learner.
-        loss = self.loss(batch_sequences)
+        loss = (td_errors.pow(2).mean(dim=0) * ptu.tensor(weights)).mean()
         self.optimizer.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(self.policy.parameters(), self.model_hypr['adam_clip_norm'])
         self.optimizer.step()
-
+        print("R2D2 Learner Loss: {:.4f}".format(loss.item()))
         self.update_count += 1
-        if self.update_count % self.model_hypr['target_q_update_period']:
-            self.target.load_state_dict(self.policy.state_dict())
+        self.logger.log_scalar('R2D2Loss', loss.item(), self.update_count)
+
 
     def to(self, device):
         self.policy.to(device)
         self.target.to(device)
-
-    def loss(self, samples):
-        pass

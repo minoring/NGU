@@ -1,14 +1,13 @@
-from collections import namedtuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
 
+import ngu.utils.pytorch_util as ptu
 from ngu.models import model_hypr
 from ngu.models.utils import conv2d_out
 from ngu.models.common import weight_init
-import ngu.utils.pytorch_util as ptu
+from ngu.models.common.type import Hiddenstate
 
 
 class DuelingLSTM(nn.Module):
@@ -20,8 +19,8 @@ class DuelingLSTM(nn.Module):
         self.n_act = n_act
         self.obs_shape = obs_shape
         self.model_hypr = model_hypr
-        self.N = model_hypr['num_mixtures']  # NGU(N=)
-        # Hard-code numbers are came from NGU paper Appendix H.3.
+        self.N = model_hypr['num_mixtures']  # NGU(N=?) Number.
+        # Hard-coded numbers of layers came from NGU paper Appendix H.3.
         # CNN.
         self.conv1 = weight_init(nn.Conv2d(obs_shape[0], 32, kernel_size=8, stride=4))
         self.conv2 = weight_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
@@ -29,16 +28,17 @@ class DuelingLSTM(nn.Module):
         h = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[1], 4, 4), 4, 2), 3, 1)
         w = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[2], 4, 4), 4, 2), 3, 1)
         # LSTM.
+        self.hidden_units = 512
         self.flatten = nn.Flatten()
         # Output of convolution + action shape + intrinsic reward shape + extrinsic reward shape + num mixture.
         input_shape_lstm = h * w * 64 + (1 + 1 + 1 + self.N)
         self.lstm = weight_init(nn.LSTMCell(input_shape_lstm, 512))
-        self.hx = torch.zeros(self.model_hypr['batch_size'], 512)
-        self.cx = torch.zeros(self.model_hypr['batch_size'], 512)
+        self.hx = torch.zeros(self.model_hypr['batch_size'], self.hidden_units)
+        self.cx = torch.zeros(self.model_hypr['batch_size'], self.hidden_units)
         # Dueling Architecture.
-        self.adv1 = weight_init(nn.Linear(512, 512))
+        self.adv1 = weight_init(nn.Linear(self.hidden_units, 512))
         self.adv2 = weight_init(nn.Linear(512, self.n_act), gain=init.calculate_gain('linear'))
-        self.val1 = weight_init(nn.Linear(512, 512))
+        self.val1 = weight_init(nn.Linear(self.hidden_units, 512))
         self.val2 = weight_init(nn.Linear(512, 1), gain=init.calculate_gain('linear'))
 
     def forward(self, obs, act, int_rew, ext_rew, beta):
@@ -69,19 +69,22 @@ class DuelingLSTM(nn.Module):
         self.hx = self.hx.to(device)
         self.cx = self.cx.to(device)
 
-    def get_hidden_state(self, to_cpu=True):
-        hidden_state = HiddenState(self.hx.detach(), self.cx.detach())
+    def get_hidden_state(self, to_cpu=False):
+        hx = self.hx.detach()
+        cx = self.cx.detach()
         if to_cpu:
-            hidden_state.hx = hidden_state.hx.cpu()
-            hidden_state.cx = hidden_state.cx.cpu()
-        return hidden_state
+            hx = hx.cpu()
+            cx = cx.cpu()
+        return Hiddenstate(hx, cx)
 
     def set_hidden_state(self, hidden_state, to_device=True):
+        """Set model's hidden state to given hidden state.
+        Args:
+            hidden_state: Hidden state that model will have.
+            to_device: Whether to place it on the device.
+        """
         self.hx = hidden_state.hx.clone()
         self.cx = hidden_state.cx.clone()
         if to_device:
             self.hx.to(ptu.device)
             self.cx.to(ptu.device)
-
-
-HiddenState = namedtuple('HiddenState', ['hx', 'cx'])

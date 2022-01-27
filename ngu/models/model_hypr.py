@@ -1,4 +1,4 @@
-"""Hyperparameters for NGU, RND model.
+"""Hyperparameters for NGU, R2D2, RND model.
 
 Take a look at
 - Appendix F (Badia and Sprechmann et al., Never Give Up: Learning Directed Exploration Strategies, ICLR, 2020.)
@@ -26,12 +26,20 @@ model_hypr = dict(
     replay_period=40,
     r2d2_reward_transform=reward_transform,
     r2d2_reward_transformation_inverted=reward_transform_inverted,
-    actor_update_period=100,  # Actor parameter update interval in terms of environment step.
-    priority_exponent=0.9, # eta in R2D2.
+    actor_update_period=
+    100,  # Actor parameter update interval in terms of the number of parameter updates.
+    priority_exponent=0.9,  # eta in R2D2.
+    importance_sampling_exponent=0.6,
     intrinsic_reward_scale=0.3,  # Beta
     target_q_update_period=1500,
-    n_step=5, # n-step TD error.
+    n_step=5,  # n-step TD error.
+    beta=0.4,  # Beta0 of prioritized replay memory.
     # Episodic memory.
+    # Rough calculation of required memory.
+    # **********
+    # memory_capacity x num_actors x controllable_state x bits / byte / Giga
+    # 30000 x 64 x 32 x 32 / 8 / 10^9 = 0.245 GB
+    # **********
     episodic_memory_capacity=30000,
     kernel_epsilon=0.0001,
     num_neighbors=10,  # How many neighbors are used, Ker num in the paper.
@@ -40,6 +48,18 @@ model_hypr = dict(
     kernel_maximum_similarity=8,
     # Replay Memory.
     replay_priority_exponent=0.9,
-    replay_capacity=5000000,  # 5M
-    minimum_sequences_to_start_replay=6250,
+    remove_to_fit_interval=
+    100,  # The number of learning step before removing sequences that exceed memory capacity.
+    # Rough calculation for required memory size.
+    # **********
+    # memory_capacity x sequence_length x transition_size x bits / byte / Giga
+    # 5M x 120 x (1 x 84 x 84 x 2) x 32 / 8 / 10^9 = 16934 GB.
+    # **********
+    # replay_capacity=5000000 // 120,  # 5M / SEQUENCE_LENGTH
+    # minimum_sequences_to_start_replay=6250,
+    replay_capacity=5000000 // 120 // 7,
+    minimum_sequences_to_start_replay=1024,
+
+    # Last N frames of the sampled sequences to trian the action prediction networkand RND.trinsic novelty.
+    num_frame_intrinsic_train=5,
 )

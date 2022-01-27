@@ -15,9 +15,8 @@ class RNDPrediction(nn.Module):
         self.obs_shape = obs_shape
         self.model_hypr = model_hypr
 
-        # TODO(minho): Take a look at
         # Weight initialization: https://github.com/openai/random-network-distillation/blob/master/policies/cnn_gru_policy_dynamics.py#L125
-        # Hard-code numbers: NGU paper Appendix H.2.
+        # Hard-coded numbers of layers came from NGU paper Appendix H.2.
         self.conv1 = weight_init(nn.Conv2d(obs_shape[0], 32, kernel_size=8, stride=4))
         self.conv2 = weight_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
         self.conv3 = weight_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))

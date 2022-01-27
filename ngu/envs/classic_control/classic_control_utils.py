@@ -9,7 +9,6 @@ def make_classic_control_env(env_id, seed, rank, env_hypr):
 
     def _thunk():
         env = gym.make(env_id)
-        assert 'NoFrameskip' in env.spec.id
         env.seed(seed + rank)  # Each parellel environment will have different seed.
 
         obs_shape = env.observation_space.shape

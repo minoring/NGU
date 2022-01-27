@@ -6,27 +6,24 @@ import numpy as np
 import ngu.utils.pytorch_util as ptu
 from ngu.models.r2d2.dueling_lstm import DuelingLSTM
 from ngu.utils.random_util import choose_among_with_prob
-from ngu.models.common.type import Transition
 
 
 class R2D2Actor:
     """R2D2 Actor. Actors feed experience into the replay buffer."""
 
-    def __init__(self, envs, n_actors, n_act, obs_shape, replay_memory, model_hypr):
+    def __init__(self, envs, n_actors, n_act, obs_shape, model_hypr):
         """
         Args:
             envs: Vectorized parallel environment.
             n_actors: The number actors collecting experience.
             n_act: Action dimension.
             obs_shape: Observation dimension (3 channel image shape expected.).
-            replay_memory: Replay memory that actors will feed experience.
             model_hypr: Hyperparameters (batch_size, learning_rate, etc.).
         """
         self.envs = envs
         self.n_actors = n_actors
         self.n_act = n_act
         self.obs_shape = obs_shape
-        self.replay_memory = replay_memory
         self.model_hypr = model_hypr
         self.N = self.model_hypr['num_mixtures']
         # Initialize exploration factor betas.
@@ -37,7 +34,13 @@ class R2D2Actor:
         self.target = DuelingLSTM(n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
 
-        self.sequence_buffer = torch.zeros((self.n_actors, self.model_hypr['trace_length']))
+        for param in list(self.policy.parameters()) + list(self.target.parameters()):
+            param.requires_grad = False
+
+    def reset_hiddenstate_if_done(self, done):
+        """If episode done, reset hidden state."""
+        self.policy.hx[done.squeeze(-1), :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
+        self.policy.cx[done.squeeze(-1), :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
 
     @torch.no_grad()
     def get_eps_greedy_action(self, obs, prev_act, prev_ext_rew, prev_int_rew):
@@ -54,11 +57,12 @@ class R2D2Actor:
         action.unsqueeze_(-1)
         return action
 
-    def compute_nstep_reward(self, nstep_buffer):
+    def compute_nstep_reward(self, nstep_buffer, discount):
         """Compute sum of n-step rewards in nstep_buffer.
 
         Args:
             nstep_buffer: N_STEP x n_actors transitions.
+            discount: discount to compute n-step.
         Returns:
             Sum of discounted n-step rewards.
         """
@@ -66,7 +70,7 @@ class R2D2Actor:
         r_nstep = torch.zeros((self.n_actors, 1))
         for i in range(self.model_hypr['n_step']):
             done_mask = torch.logical_or(done_mask, nstep_buffer[i].done)
-            r_nstep += (self.discounts**i) * (1.0 - done_mask.float()) * nstep_buffer[i].reward
+            r_nstep += (discount**i) * (1.0 - done_mask.float()) * nstep_buffer[i].reward_augmented
         return r_nstep
 
     def _compute_exploration_factor(self):

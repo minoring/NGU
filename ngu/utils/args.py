@@ -1,3 +1,4 @@
+import os
 import argparse
 
 
@@ -16,12 +17,12 @@ def get_args():
                         type=int,
                         default=200,
                         help='Logging interval in terms of the number of steps (default: 100)')
-    parser.add_argument('--log-csv-path',
-                        help='Path to csv file to save log (default: log/log.csv)',
-                        default='log/log.csv')
+    parser.add_argument('--monitor-root',
+                        help='Directory to csv file to save log (default: log/monitor)',
+                        default=os.path.join('log', 'monitor'))
     parser.add_argument('--log-dir',
-                        help='Directory to save log summary (default: log)',
-                        default='log')
+                        help='Directory to save tensorboard log summary (default: log/tensorboard)',
+                        default=os.path.join('log', 'tensorboard'))
     args = parser.parse_args()
 
     return args

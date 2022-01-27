@@ -1,22 +1,19 @@
-import gym
+import os
 
-from stable_baselines3.common.atari_wrappers import (FireResetEnv, MaxAndSkipEnv,
-                                                     NoopResetEnv, WarpFrame)
-from stable_baselines3.common.monitor import Monitor
+import gym
+from stable_baselines3.common.atari_wrappers import (FireResetEnv, MaxAndSkipEnv, NoopResetEnv,
+                                                     WarpFrame)
 
 from ngu.envs.wrapper import (DummyMontezumaInfoWrapper, MontezumaInfoWrapper, StickyActionEnv,
-                              TransposeImage, EpisodicReturnWrapper)
+                              TransposeImage, Monitor)
 
 
-def make_atari_env(env_id, seed, rank, env_hypr):
+def make_atari_env(env_id, seed, rank, env_hypr, monitor_dir):
 
     def _thunk():
         env = gym.make(env_id)
         assert 'NoFrameskip' in env.spec.id
         env.seed(seed + rank)  # Each parellel environment will have different seed.
-
-        env = Monitor(env, filename='log.monitor')
-        env = EpisodicReturnWrapper(env)
 
         env._max_episode_steps = env_hypr['max_episode_steps'] * env_hypr['num_action_repeats']
         if env_hypr['random_noops_range'] > 0:
@@ -34,6 +31,10 @@ def make_atari_env(env_id, seed, rank, env_hypr):
 
         if "FIRE" in env.unwrapped.get_action_meanings():
             env = FireResetEnv(env)  # Take action 'FIRE' if needed in initial state.
+
+        monitor_path = os.path.join(monitor_dir, f'{rank}')
+        # Log episodic reward, episode length and misc information.
+        env = Monitor(env, monitor_path, allow_early_resets=True)
 
         obs_shape = env.observation_space.shape
         assert len(obs_shape) == 3  # 3 channel image expected.
