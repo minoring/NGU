@@ -12,7 +12,7 @@ from ngu.envs.utils import make_vec_envs
 from ngu.utils.random_util import set_global_seed
 from ngu.models import model_hypr
 from ngu.utils.logger import Logger
-from ngu.utils.misc import RecordRunner
+from ngu.utils.record_runner import RecordRunner
 
 
 def main():
