@@ -11,7 +11,7 @@ from ngu.envs.atari import atari_env_hypr
 from ngu.envs.classic_control import classic_control_env_hypr
 
 
-def make_vec_envs(env_id, num_env, seed, device, log_root):
+def make_vec_envs(env_id, num_env, seed, device, log_root, record_video=False):
     """Create a wrapped, preprocessed, vectorized parallel environments of Atari.
 
     Args:
@@ -20,6 +20,7 @@ def make_vec_envs(env_id, num_env, seed, device, log_root):
         seed: Random seed for the environments.
         device: PyTorch tensor device.
         log_root: Directory to save monitor files.
+        record_video: Whether record the video.
     Returns:
         Vectorized parallel environment.
     """
@@ -28,8 +29,10 @@ def make_vec_envs(env_id, num_env, seed, device, log_root):
 
     # Make directory to save monitor csv files.
     monitor_dir = os.path.join(log_root, 'monitor')
-    os.makedirs(monitor_dir)
-    envs = [env_creator(env_id, seed, i, env_hypr, monitor_dir) for i in range(num_env)]
+    os.makedirs(monitor_dir, exist_ok=True)
+
+    video_dir = os.path.join(log_root, 'video') if record_video else None
+    envs = [env_creator(env_id, seed, i, env_hypr, monitor_dir, video_dir) for i in range(num_env)]
     envs = SubprocVecEnv(envs) if len(envs) > 1 else DummyVecEnv(envs)
     envs = VecNormalize(envs, norm_reward=False, clip_obs=env_hypr['rnd_obs_clipping_factor'])
     envs = VecPyTorch(envs, device)

@@ -8,7 +8,7 @@ from ngu.envs.wrapper import (DummyMontezumaInfoWrapper, MontezumaInfoWrapper, S
                               TransposeImage, Monitor)
 
 
-def make_atari_env(env_id, seed, rank, env_hypr, monitor_dir):
+def make_atari_env(env_id, seed, rank, env_hypr, monitor_dir, video_dir):
 
     def _thunk():
         env = gym.make(env_id)
@@ -35,6 +35,9 @@ def make_atari_env(env_id, seed, rank, env_hypr, monitor_dir):
         monitor_path = os.path.join(monitor_dir, f'{rank}')
         # Log episodic reward, episode length and misc information.
         env = Monitor(env, monitor_path, allow_early_resets=True)
+
+        if video_dir is not None:
+            env = gym.wrappers.Monitor(env, video_dir)
 
         obs_shape = env.observation_space.shape
         assert len(obs_shape) == 3  # 3 channel image expected.

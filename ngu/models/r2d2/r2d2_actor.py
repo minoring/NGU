@@ -43,10 +43,10 @@ class R2D2Actor:
         self.policy.cx[done.squeeze(-1), :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
 
     @torch.no_grad()
-    def get_eps_greedy_action(self, obs, prev_act, prev_ext_rew, prev_int_rew):
-        obs, prev_act, prev_ext_rew, prev_int_rew, beta_onehot = ptu.to_device(
-            (obs, prev_act, prev_ext_rew, prev_int_rew, self.explr_beta_onehot), ptu.device)
-        greedy_action = self.policy(obs, prev_act, prev_ext_rew, prev_int_rew,
+    def get_eps_greedy_action(self, obs, prev_act, prev_int_rew, prev_ext_rew):
+        obs, prev_act, prev_int_rew, prev_ext_rew, beta_onehot = ptu.to_device(
+            (obs, prev_act, prev_int_rew, prev_ext_rew, self.explr_beta_onehot), ptu.device)
+        greedy_action = self.policy(obs, prev_act, prev_int_rew, prev_ext_rew,
                                     beta_onehot).argmax(1).cpu()
         random_action = torch.randint(1, self.n_act, (self.n_actors, ))
         # Each actor selects action with their own epsilon.

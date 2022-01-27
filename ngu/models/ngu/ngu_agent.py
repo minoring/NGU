@@ -12,7 +12,6 @@ from ngu.models.common.type import Transition, Sequence, Hiddenstate
 
 class NGUAgent:
     """NEVER GIVE UP!"""
-
     def __init__(self, envs, n_actors, n_act, obs_shape, model_hypr, logger):
         self.envs = envs
         self.n_actors = n_actors
@@ -58,7 +57,7 @@ class NGUAgent:
         # Collect NUM_TOTAL_STEP transitions.
         for _ in range(self.num_total_step):
             action = self.r2d2_actor.get_eps_greedy_action(self.prev_obs, self.prev_act,
-                                                           self.prev_ext_rew, self.prev_int_rew)
+                                                           self.prev_int_rew, self.prev_ext_rew)
             next_obs, rew, done, info = self.envs.step(action)
             # Here done was numpy boolean. Convert it into tensor.
             done = torch.tensor(done[..., np.newaxis])
@@ -309,6 +308,17 @@ class NGUAgent:
         ])
 
         return timestep_seq
+
+    @torch.no_grad()
+    def get_greedy_action(self, obs, prev_act, prev_ext_rew):
+        beta_onehot = self.r2d2_actor.explr_beta_onehot[:1]  # Greey beta.
+        prev_int_rew = torch.zeros_like(prev_ext_rew)
+
+        obs, prev_act, prev_ext_rew, prev_int_rew, beta_onehot = ptu.to_device(
+            (obs, prev_act, prev_ext_rew, prev_int_rew, beta_onehot), ptu.device)
+        greedy_action = self.r2d2_learner.policy(obs, prev_act, prev_ext_rew, prev_int_rew,
+                                                 beta_onehot).argmax(1, keepdim=True).cpu()
+        return greedy_action
 
     def to(self, device):
         self.r2d2_learner.to(device)

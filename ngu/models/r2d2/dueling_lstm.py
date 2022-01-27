@@ -88,3 +88,7 @@ class DuelingLSTM(nn.Module):
         if to_device:
             self.hx = self.hx.to(ptu.device)
             self.cx = self.cx.to(ptu.device)
+
+    def reset_hidden_state(self, hidden_size):
+        self.hx = torch.zeros((hidden_size, 512), device=ptu.device)
+        self.cx = torch.zeros((hidden_size, 512), device=ptu.device)

@@ -12,6 +12,7 @@ from ngu.envs.utils import make_vec_envs
 from ngu.utils.random_util import set_global_seed
 from ngu.models import model_hypr
 from ngu.utils.logger import Logger
+from ngu.utils.misc import RecordRunner
 
 
 def main():
@@ -34,12 +35,16 @@ def main():
     n_act = envs.action_space.n
     obs_shape = envs.observation_space.shape
 
-    logger = Logger(args.env_id, log_root)
-    ngu_agent = NGUAgent(envs, args.n_actors, n_act, obs_shape, model_hypr, logger)
+    train_logger = Logger(args.env_id, log_root)
+    ngu_agent = NGUAgent(envs, args.n_actors, n_act, obs_shape, model_hypr, train_logger)
     ngu_agent.to(ptu.device)
 
     ngu_agent.collect_minimum_sequences()  # Collect minimum experience to run replay.
-    for param_update_count in count(1):
+
+    if args.video_save_interval is not None:
+        record_env = RecordRunner(args.env_id, args.seed + 1, log_root)
+
+    for param_update_count in count(0):
         ngu_agent.step()  # Update parameters single step.
         ngu_agent.collect_sequence()  # Each parallel actors collect a sequence.
 
@@ -49,9 +54,13 @@ def main():
             save_path = os.path.join(trained_model_dir, model_name)
             torch.save(ngu_agent.r2d2_learner.policy.state_dict(), save_path)
 
-        if (args.video_save_interval is not None and param_update_count % args.video_save_interval == 0):
-            pass
+        if (args.video_save_interval is not None
+                and param_update_count % args.video_save_interval == 0):
+            print(f"Video Recording [learning step: {param_update_count}]")
+            video_dir = os.path.join(log_root, 'video')
+            os.makedirs(video_dir, exist_ok=True)
 
+            record_env.record(ngu_agent)
 
 
 if __name__ == '__main__':
