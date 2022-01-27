@@ -64,4 +64,4 @@ class Embedding(nn.Module):
             loss_avg = loss_avg + (1 / (t + 1)) * (loss.item() - loss_avg)
         print("Action Prediction Loss: {:.4f}".format(loss_avg))
         self.update_count += 1
-        self.logger.log_scalar('EmbeddingLoss', loss_avg, self.update_count)
+        self.logger.log_scalar('ActionpredictionLoss', loss_avg, self.update_count)

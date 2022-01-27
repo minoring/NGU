@@ -1,6 +1,5 @@
 """Utility functions for environment."""
 import os
-import time
 
 import gym
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -12,7 +11,7 @@ from ngu.envs.atari import atari_env_hypr
 from ngu.envs.classic_control import classic_control_env_hypr
 
 
-def make_vec_envs(env_id, num_env, seed, device, monitor_root):
+def make_vec_envs(env_id, num_env, seed, device, log_root):
     """Create a wrapped, preprocessed, vectorized parallel environments of Atari.
 
     Args:
@@ -20,7 +19,7 @@ def make_vec_envs(env_id, num_env, seed, device, monitor_root):
         num_env: The number of parallel environments.
         seed: Random seed for the environments.
         device: PyTorch tensor device.
-        monitor_root: Directory to save monitor files.
+        log_root: Directory to save monitor files.
     Returns:
         Vectorized parallel environment.
     """
@@ -28,7 +27,7 @@ def make_vec_envs(env_id, num_env, seed, device, monitor_root):
     env_hypr = get_env_hypr(env_id)
 
     # Make directory to save monitor csv files.
-    monitor_dir = os.path.join(monitor_root, env_id + '_' + time.strftime("%d-%m-%Y_%H-%M-%S"))
+    monitor_dir = os.path.join(log_root, 'monitor')
     os.makedirs(monitor_dir)
     envs = [env_creator(env_id, seed, i, env_hypr, monitor_dir) for i in range(num_env)]
     envs = SubprocVecEnv(envs) if len(envs) > 1 else DummyVecEnv(envs)

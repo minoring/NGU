@@ -2,7 +2,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ngu.models.r2d2.dueling_lstm import DuelingLSTM
-import ngu.utils.pytorch_util as ptu
 
 
 class R2D2Learner:
@@ -11,18 +10,20 @@ class R2D2Learner:
     introduced in NGU paper.
     """
 
-    def __init__(self, n_act, obs_shape, replay_memory, model_hypr):
+    def __init__(self, n_act, obs_shape, replay_memory, model_hypr, logger):
         """
         Args:
             n_act: Action dimension.
             obs_shape: Observation dimension (3 channel image shape expected).
             replay_memory: Prioritized replay memory that actors fill in experience.
             model_hypr: Hyperparameters (batch_size, learning_rate, etc.).
+            logger: Logger.
         """
         self.n_act = n_act
         self.obs_shape = obs_shape
         self.replay_memory = replay_memory
         self.model_hypr = model_hypr
+        self.logger = logger
         # Initialize Policy Neural Net
         self.policy = DuelingLSTM(n_act, obs_shape, model_hypr)
         self.target = DuelingLSTM(n_act, obs_shape, model_hypr)
@@ -40,7 +41,7 @@ class R2D2Learner:
             td_errors: TD-error between the policy and the target.
             weights: Weights of importance sampling.
         """
-        loss = (td_errors.pow(2).mean(dim=0) * ptu.tensor(weights)).mean()
+        loss = (td_errors.pow(2).mean(dim=0) * weights).mean()
         self.optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(self.policy.parameters(), self.model_hypr['adam_clip_norm'])
@@ -48,7 +49,7 @@ class R2D2Learner:
         print("R2D2 Learner Loss: {:.4f}".format(loss.item()))
         self.update_count += 1
         self.logger.log_scalar('R2D2Loss', loss.item(), self.update_count)
-
+        self.logger.log_scalar('R2D2WeightMean', weights.mean().item(), self.update_count)
 
     def to(self, device):
         self.policy.to(device)

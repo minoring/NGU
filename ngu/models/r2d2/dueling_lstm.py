@@ -86,5 +86,5 @@ class DuelingLSTM(nn.Module):
         self.hx = hidden_state.hx.clone()
         self.cx = hidden_state.cx.clone()
         if to_device:
-            self.hx.to(ptu.device)
-            self.cx.to(ptu.device)
+            self.hx = self.hx.to(ptu.device)
+            self.cx = self.cx.to(ptu.device)

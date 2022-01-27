@@ -59,7 +59,6 @@ model_hypr = dict(
     # minimum_sequences_to_start_replay=6250,
     replay_capacity=5000000 // 120 // 7,
     minimum_sequences_to_start_replay=1024,
-
     # Last N frames of the sampled sequences to trian the action prediction networkand RND.trinsic novelty.
     num_frame_intrinsic_train=5,
 )

@@ -20,9 +20,10 @@ class EpisodicNovelty:
         self.n_act = n_act
         self.obs_shape = obs_shape
         self.model_hypr = model_hypr
+        self.logger = logger
         self.controllable_state_dim = 32
         self.embedding = Embedding(self.n_act, self.obs_shape, self.controllable_state_dim,
-                                   self.model_hypr, logger)
+                                   self.model_hypr, self.logger)
         # Running average of the Euclidean distance.
         # This is to make learnt embedding less sensitive to the specific task we are solving.
         self.ed_rms = RunningMeanStd((self.model_hypr['num_neighbors'], ))
@@ -30,11 +31,7 @@ class EpisodicNovelty:
         self.episodic_memory = torch.zeros(
             (self.capacity, self.n_actors, self.controllable_state_dim))
         self.memory_idx = 0
-
-    def clear(self):
-        """Clear episodic memory."""
-        self.episodic_memory = torch.zeros(
-            (self.capacity, self.num_actors, self.controllable_state_dim))
+        self.update_count = 0
 
     @torch.no_grad()
     def compute_episodic_novelty(self, obs):
@@ -89,6 +86,9 @@ class EpisodicNovelty:
 
     def step(self, timestep_seq):
         self.embedding.step(timestep_seq)
+        self.update_count += 1
+        self.logger.log_scalar('EuclideanDistanceMean', self.ed_rms.mean.mean(), self.update_count)
+        self.logger.log_scalar('EuclideanDistanceVar', self.ed_rms.var.mean(), self.update_count)
 
     def to(self, device):
         self.embedding.to(device)

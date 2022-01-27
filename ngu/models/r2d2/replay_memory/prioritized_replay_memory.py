@@ -32,5 +32,6 @@ class PrioritizedReplayMemory:
     def __len__(self):
         return len(self.sequences)
 
+    @property
     def total_prios(self):
         return self.priorities.root.value

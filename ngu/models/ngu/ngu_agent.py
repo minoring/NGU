@@ -30,7 +30,7 @@ class NGUAgent:
             'trace_length'] + self.replay_period + fill_steps + margin_steps
         self.memory = PrioritizedReplayMemory(self.model_hypr['replay_capacity'])
         # R2D2
-        self.r2d2_learner = R2D2Learner(n_act, obs_shape, self.memory, model_hypr)
+        self.r2d2_learner = R2D2Learner(n_act, obs_shape, self.memory, model_hypr, logger)
         self.r2d2_actor = R2D2Actor(envs, n_actors, n_act, obs_shape, model_hypr)
         # Initialize Intrinsic Novelty (episodic, life-long module).
         self.intrinsic_novelty = IntrinsicNovelty(n_actors, n_act, obs_shape, model_hypr, logger)
@@ -70,7 +70,7 @@ class NGUAgent:
             self.prev_int_rew = self.intrinsic_novelty.compute_intrinsic_novelty(self.prev_obs)
             # Fill n-step buffer.
             intrinsic_novelty = self.intrinsic_novelty.compute_intrinsic_novelty(next_obs)
-            reward_augmented = rew + self.r2d2_actor.explr_beta * intrinsic_novelty.squeeze(-1)
+            reward_augmented = rew + self.r2d2_actor.explr_beta * intrinsic_novelty
             nstep_buff.append(
                 Transition(self.prev_obs, self.prev_act, action, self.prev_int_rew,
                            self.prev_ext_rew, reward_augmented, next_obs, done))
@@ -94,7 +94,7 @@ class NGUAgent:
         # Compute TD error.
         td_errors = self.compute_td_error(self.r2d2_actor, timestep_seq)
         priorities = self.compute_priorities(td_errors)
-        priorities = priorities.squeeze(-1).numpy().tolist()
+        priorities = ptu.to_list(priorities.squeeze(-1))
         # L x STATE x NUM_ACTOR -> NUM_ACTOR x L x STATE -> L x STATE x NUM_ACTOR
         sequences = self.batch_seq_from_timestep_seq(timestep_seq)
         # Putting in prioritized replay memory.
@@ -108,9 +108,10 @@ class NGUAgent:
         """Given timestep sequences, create batch of sequence.
 
         Args:
-            timestep_seq: Sequence(init_recurr_state=(N_ACTORS, 1),
-                                   transitions=(SEQUENCE_LENGTH x N_ACTORS) transitions,
-                                   intrinsic_factor=(N_ACTORS, 1)) shaped sequence.
+            timestep_seq: Sequence(init_recurr_state=[N_ACTORS, 1],
+                            transitions=[SEQUENCE_LENGTH, N_ACTORS] transitions,
+                            intrinsic_factor=[N_ACTORS, 1],
+                            discount_factor=[N_ACTORS, 1]) shaped sequence.
         Returns:
             (N_ACTORS, SEQUENCE) shaped list.
         """
@@ -181,15 +182,15 @@ class NGUAgent:
 
         Args:
             agent: R2D2 Actor or Learner.
-            timestep_seq: Sequence(init_recurr_state=(N_ACTORS, 1),
-                                   transitions=(SEQUENCE_LENGTH x N_ACTORS) transitions,
-                                   intrinsic_factor=(N_ACTORS, 1),
-                                   discount_factor=(N_ACTORS, 1),
-                                   ) shaped sequence.
+            timestep_seq: Sequence(init_recurr_state=[N_ACTORS, 1],
+                                   transitions=[SEQUENCE_LENGTH, N_ACTORS] transitions,
+                                   intrinsic_factor=[N_ACTORS, 1],
+                                   discount_factor=[N_ACTORS, 1]) shaped sequence.
         Returns:
             TD-error, which is substraction Q from n-step target.
         """
-        td_errors = torch.zeros((self.seq_len - self.replay_period, self.n_actors, 1))
+        td_errors = torch.zeros((self.seq_len - self.replay_period, self.n_actors, 1),
+                                device=ptu.device)
         for t in range(self.replay_period, self.seq_len):
             trans_curr = timestep_seq.transitions[t]
             trans_targ = timestep_seq.transitions[t + self.n_step]
@@ -246,31 +247,33 @@ class NGUAgent:
             -self.model_hypr['beta']
         )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
         weights /= weights.max()
+        weights = ptu.to_tensor(weights)
         self.r2d2_learner.step(td_errors, weights)
 
         # Update memory priorities with learner.
         new_priorities = self.compute_priorities(td_errors)
-        self.memory.update_priorities(sequence_idxs,
-                                      new_priorities.squeeze(-1).cpu().numpy().tolist())
+        self.memory.update_priorities(sequence_idxs, ptu.to_list(new_priorities.squeeze(-1)))
 
         # Update parameters after N learning steps.
         self.update_count += 1
-        if self.update_count % self.model_hypr['actor_update_period']:
-            print(f"Num update step: {self.update_count}, Actors fetch parameters from learner")
+        if self.update_count % self.model_hypr['actor_update_period'] == 0:
+            print(f"Actors fetch parameters from learner, [learning step: {self.update_count}]")
             self.r2d2_actor.policy.load_state_dict(self.r2d2_learner.policy.state_dict())
             self.r2d2_actor.target.load_state_dict(self.r2d2_actor.policy.state_dict())
-        if self.update_count % self.model_hypr['target_q_update_period']:
-            print(f"Num update step: {self.update_count}, updating target Q of learner.")
+        if self.update_count % self.model_hypr['target_q_update_period'] == 0:
+            print(f"Updating target Q of learner. [learning step: {self.update_count}]")
             self.r2d2_learner.target.load_state_dict(self.r2d2_learner.policy.state_dict())
 
         # Log memory size.
         self.logger.log_scalar('MemorySize', len(self.memory), self.update_count)
         # Every n learning steps, any excess data about the memory capacity threshold is removed in FIFO order.
-        if self.update_count % self.model_hypr['remove_to_fit_interval']:
-            print("Removing memory to fit capacity.")
+        if self.update_count % self.model_hypr['remove_to_fit_interval'] == 0:
+            print(f"Removing memory to fit capacity. [learning step: {self.update_count}]")
+            print(f"Before the removal, memory size: {len(self.memory)}")
             self.memory.remove_to_fit()
+            print(f"After the removal, memory size: {len(self.memory)}")
 
-    def _batch_seq_to_timestep_seq(sequences):
+    def _batch_seq_to_timestep_seq(self, sequences):
         """Convert batch of sequence that is sampled from the memory to the format that the training loop expects (timestep_seq).
         It is bit ugly but works...
         """

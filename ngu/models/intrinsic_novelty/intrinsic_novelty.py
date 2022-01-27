@@ -12,7 +12,7 @@ class IntrinsicNovelty:
         self.logger = logger
         self.ll_novel = LifelongNovelty(obs_shape, model_hypr, logger)
         self.epi_novel = EpisodicNovelty(n_actors, n_act, obs_shape, model_hypr, logger)
-        self.max_rew = 5.
+        self.max_rew = 5. # NGU paper Equ 1. It was 'L' in the paper.
 
     def compute_intrinsic_novelty(self, obs):
         batch_size = len(obs)

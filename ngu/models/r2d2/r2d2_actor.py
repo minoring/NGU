@@ -80,7 +80,7 @@ class R2D2Actor:
             return (1 / (1 + math.exp(-x)))
 
         beta = self.model_hypr['intrinsic_reward_scale']
-        explr_beta = torch.zeros((self.n_actors, ))
+        explr_beta = torch.zeros((self.n_actors, 1))
         explr_beta_onehot = torch.zeros((self.n_actors, self.N))
         for j in range(self.n_actors):
             i = j % self.N

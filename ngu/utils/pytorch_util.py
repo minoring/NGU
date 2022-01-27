@@ -26,6 +26,10 @@ def to_numpy(tensor):
     return tensor.detach().cpu().numpy()
 
 
+def to_list(tensor):
+    return to_numpy(tensor).tolist()
+
+
 def to_device(tensors, device):
     res = []
     for t in tensors:
