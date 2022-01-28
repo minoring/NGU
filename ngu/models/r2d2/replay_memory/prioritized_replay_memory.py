@@ -1,10 +1,10 @@
 from collections import deque
 
 from ngu.models.r2d2.replay_memory.sumtree import SumTree
+from ngu.utils import profile
 
 
 class PrioritizedReplayMemory:
-
     def __init__(self, capacity):
         self.capacity = capacity
         self.sequences = deque()
@@ -22,6 +22,7 @@ class PrioritizedReplayMemory:
         for idx, prio in zip(indices, priorities):
             self.priorities[idx] = prio
 
+    @profile
     def remove_to_fit(self):
         if len(self.priorities) - self.capacity <= 0:
             return

@@ -8,6 +8,7 @@ from ngu.models.r2d2 import R2D2Learner, R2D2Actor
 from ngu.models.r2d2.replay_memory import PrioritizedReplayMemory
 from ngu.models.intrinsic_novelty import IntrinsicNovelty
 from ngu.models.common.type import Transition, Sequence, Hiddenstate
+from ngu.utils import profile
 
 
 class NGUAgent:
@@ -41,6 +42,7 @@ class NGUAgent:
 
         self.update_count = 0
 
+    @profile
     @torch.no_grad()
     def collect_sequence(self):
         """Each Parallel actors collect a sequence for the training.
@@ -103,6 +105,7 @@ class NGUAgent:
         self.r2d2_actor.policy.set_hidden_state(policy_hidden_state)
         self.r2d2_actor.target.set_hidden_state(target_hidden_state)
 
+    @profile
     def batch_seq_from_timestep_seq(self, timestep_seq):
         """Given timestep sequences, create batch of sequence.
 
@@ -229,6 +232,7 @@ class NGUAgent:
                 len(self.memory), self.model_hypr['minimum_sequences_to_start_replay'],
                 (len(self.memory) / self.model_hypr['minimum_sequences_to_start_replay']) * 100))
 
+    @profile
     def step(self):
         """Single step update of NGU agent"""
         assert len(self.memory) >= self.model_hypr['minimum_sequences_to_start_replay']

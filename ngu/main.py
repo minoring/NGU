@@ -13,12 +13,13 @@ from ngu.utils.random_util import set_global_seed
 from ngu.models import model_hypr
 from ngu.utils.logger import Logger
 from ngu.utils.record_runner import RecordRunner
-
+from ngu.utils import init_profile
 
 def main():
     args = get_args()
     set_global_seed(args.seed)
     ptu.init_device()
+    init_profile(args.profile)
 
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S")
     log_root = os.path.join('log', f'{args.env_id}_{current_time}')

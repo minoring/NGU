@@ -20,6 +20,10 @@ def get_args():
     parser.add_argument('--video-save-interval',
                         type=int,
                         help='How many steps to train before save the video.')
+    parser.add_argument('--profile',
+                        action='store_true',
+                        help='Whether to print time spent for the function call',
+                        default=False)
     args = parser.parse_args()
 
     return args
