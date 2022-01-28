@@ -7,7 +7,6 @@ from ngu.utils import profile
 
 
 class EpisodicNovelty:
-
     def __init__(self, n_actors, n_act, obs_shape, model_hypr, logger):
         """
         Args:
@@ -28,14 +27,14 @@ class EpisodicNovelty:
         # Running average of the Euclidean distance.
         # This is to make learnt embedding less sensitive to the specific task we are solving.
         self.ed_rms = RunningMeanStd((self.model_hypr['num_neighbors'], ))
-        self.epi_novel_rms = RunningMeanStd() # Running mean standard deviation of episodic novelty.
+        self.epi_novel_rms = RunningMeanStd(
+        )  # Running mean standard deviation of episodic novelty.
         self.capacity = model_hypr['episodic_memory_capacity']
         self.episodic_memory = torch.zeros(
             (self.capacity, self.n_actors, self.controllable_state_dim))
         self.memory_idx = 0
         self.update_count = 0
 
-    @profile
     @torch.no_grad()
     def compute_episodic_novelty(self, obs):
         """Compute episodic novelty. Take a look at NGU paper Algorithm 1.

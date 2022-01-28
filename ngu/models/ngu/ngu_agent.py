@@ -13,10 +13,8 @@ from ngu.utils import profile
 
 class NGUAgent:
     """NEVER GIVE UP!"""
-
     def __init__(self, envs, n_actors, n_act, obs_shape, model_hypr, logger):
         self.envs = envs
-        self.envs.step = profile(self.envs.step)
         self.n_actors = n_actors
         self.n_act = n_act
         self.obs_shape = obs_shape
@@ -98,7 +96,7 @@ class NGUAgent:
         target_hidden_state = self.r2d2_actor.target.get_hidden_state()
         self.burn_in(self.r2d2_actor, timestep_seq)
         # Compute TD error.
-        td_errors = self.compute_td_error(self.r2d2_actor, timestep_seq)
+        td_errors = self.compute_td_error(self.n_actors, self.r2d2_actor, timestep_seq)
         priorities = self.compute_priorities(td_errors)
         priorities = ptu.to_list(priorities.squeeze(-1))
         # L x STATE x NUM_ACTOR -> NUM_ACTOR x L x STATE -> L x STATE x NUM_ACTOR
@@ -184,10 +182,11 @@ class NGUAgent:
             prev_ext_rew = transitions[t].reward_extrinsic.to(ptu.device)
             agent.target(state, prev_act, prev_int_rew, prev_ext_rew)
 
-    def compute_td_error(self, agent, timestep_seq):
+    def compute_td_error(self, batch_size, agent, timestep_seq):
         """Compute TD-error.
 
         Args:
+            batch_size: Batch size.
             agent: R2D2 Actor or Learner.
             timestep_seq: Sequence(init_recurr_state=[N_ACTORS, 1],
                                    transitions=[SEQUENCE_LENGTH, N_ACTORS] transitions,
@@ -196,7 +195,7 @@ class NGUAgent:
         Returns:
             TD-error, which is substraction Q from n-step target.
         """
-        td_errors = torch.zeros((self.seq_len - self.replay_period, self.n_actors, 1),
+        td_errors = torch.zeros((self.seq_len - self.replay_period, batch_size, 1),
                                 device=ptu.device)
         for t in range(self.replay_period, self.seq_len):
             trans_curr = timestep_seq.transitions[t]
@@ -250,7 +249,8 @@ class NGUAgent:
 
         # Update the learner.
         self.burn_in(self.r2d2_learner, timestep_seq)
-        td_errors = self.compute_td_error(self.r2d2_learner, timestep_seq)
+        td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
+                                          timestep_seq)
         weights = (len(self.memory) * np.array(priorities) / self.memory.total_prios)**(
             -self.model_hypr['beta']
         )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.

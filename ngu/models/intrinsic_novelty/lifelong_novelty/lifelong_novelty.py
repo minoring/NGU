@@ -46,7 +46,6 @@ class LifelongNovelty(nn.Module):
 
         return predictor_feature, target_feature
 
-    @profile
     @torch.no_grad()
     def compute_lifelong_curiosity(self, obs):
         obs = obs.to(ptu.device)

@@ -45,7 +45,7 @@ def main():
     if args.video_save_interval is not None:
         record_env = RecordRunner(args.env_id, args.n_actors + 1, log_root)
 
-    for param_update_count in count(0):
+    for param_update_count in count(1):
         ngu_agent.step()  # Update parameters single step.
         ngu_agent.collect_sequence()  # Each parallel actors collect a sequence.
 
