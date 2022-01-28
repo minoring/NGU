@@ -25,8 +25,8 @@ class R2D2Learner:
         self.model_hypr = model_hypr
         self.logger = logger
         # Initialize Policy Neural Net
-        self.policy = DuelingLSTM(n_act, obs_shape, model_hypr)
-        self.target = DuelingLSTM(n_act, obs_shape, model_hypr)
+        self.policy = DuelingLSTM(self.model_hypr['batch_size'], n_act, obs_shape, model_hypr)
+        self.target = DuelingLSTM(self.model_hypr['batch_size'], n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
         self.optimizer = optim.Adam(self.policy.parameters(),
                                     lr=model_hypr['learning_rate_r2d2'],

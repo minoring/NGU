@@ -30,8 +30,8 @@ class R2D2Actor:
         self.explr_beta, self.explr_beta_onehot = self._compute_exploration_factor()
         self.discounts = self._compute_discount_factor()
         # Initialize Policy Neural Net
-        self.policy = DuelingLSTM(n_act, obs_shape, model_hypr)
-        self.target = DuelingLSTM(n_act, obs_shape, model_hypr)
+        self.policy = DuelingLSTM(self.n_actors, n_act, obs_shape, model_hypr)
+        self.target = DuelingLSTM(self.n_actors, n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
 
         for param in list(self.policy.parameters()) + list(self.target.parameters()):
@@ -53,7 +53,7 @@ class R2D2Actor:
         action = choose_among_with_prob(greedy_action, random_action, self.explr_beta)
         # Since the returned action is list of tensor, convert it into tensor.
         # And unsqueeze -1 dim to match the interface of environment's step.
-        action = torch.tensor(action)
+        action = torch.tensor(action, dtype=torch.int64)
         action.unsqueeze_(-1)
         return action
 

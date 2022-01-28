@@ -12,7 +12,7 @@ def init_profile(do_profile):
 
 
 def profile(func):
-    @functools.wrappers(func)
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         global print_elapsed
         if not print_elapsed:
@@ -20,7 +20,7 @@ def profile(func):
         begin = timer()
         res = func(*args, **kwargs)
         end = timer()
-        print(f"Elapsed time for `{func.__name__}`: {end - begin}s.")
+        print(f"Elapsed time for `{func.__module__}.{func.__name__}`: {end - begin}s.")
         return res
 
     return wrapper

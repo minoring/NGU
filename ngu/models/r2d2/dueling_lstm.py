@@ -12,7 +12,7 @@ from ngu.models.common.type import Hiddenstate
 
 class DuelingLSTM(nn.Module):
     """Dueling LSTM Model of R2D2"""
-    def __init__(self, n_act, obs_shape=(1, 84, 84), model_hypr=model_hypr):
+    def __init__(self, batch_size, n_act, obs_shape=(1, 84, 84), model_hypr=model_hypr):
         """Initialize R2D2 Agebt Architecture."""
         super(DuelingLSTM, self).__init__()
         self.n_act = n_act
@@ -32,8 +32,8 @@ class DuelingLSTM(nn.Module):
         # Output of convolution + action shape + intrinsic reward shape + extrinsic reward shape + num mixture.
         input_shape_lstm = h * w * 64 + (1 + 1 + 1 + self.N)
         self.lstm = weight_init(nn.LSTMCell(input_shape_lstm, 512))
-        self.hx = torch.zeros(self.model_hypr['batch_size'], self.hidden_units)
-        self.cx = torch.zeros(self.model_hypr['batch_size'], self.hidden_units)
+        self.hx = torch.zeros(batch_size, self.hidden_units)
+        self.cx = torch.zeros(batch_size, self.hidden_units)
         # Dueling Architecture.
         self.adv1 = weight_init(nn.Linear(self.hidden_units, 512))
         self.adv2 = weight_init(nn.Linear(512, self.n_act), gain=init.calculate_gain('linear'))

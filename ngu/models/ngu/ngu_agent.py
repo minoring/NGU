@@ -13,8 +13,10 @@ from ngu.utils import profile
 
 class NGUAgent:
     """NEVER GIVE UP!"""
+
     def __init__(self, envs, n_actors, n_act, obs_shape, model_hypr, logger):
         self.envs = envs
+        self.envs.step = profile(self.envs.step)
         self.n_actors = n_actors
         self.n_act = n_act
         self.obs_shape = obs_shape
@@ -36,7 +38,7 @@ class NGUAgent:
         self.intrinsic_novelty = IntrinsicNovelty(n_actors, n_act, obs_shape, model_hypr, logger)
         # Save previous observation, action, and rewards for r2d2 input.
         self.prev_obs = self.envs.reset()
-        self.prev_act = torch.zeros((self.n_actors, 1))
+        self.prev_act = torch.zeros((self.n_actors, 1), dtype=torch.int64)
         self.prev_ext_rew = torch.zeros((self.n_actors, 1))  # Previous extrinsic reward.
         self.prev_int_rew = torch.zeros((self.n_actors, 1))  # Previous intrinsic reward.
 
@@ -61,6 +63,7 @@ class NGUAgent:
             action = self.r2d2_actor.get_eps_greedy_action(self.prev_obs, self.prev_act,
                                                            self.prev_int_rew, self.prev_ext_rew)
             next_obs, rew, done, info = self.envs.step(action)
+
             # Here done was numpy boolean. Convert it into tensor.
             done = torch.tensor(done[..., np.newaxis])
             # Reset memory if it is the end of an episode.
@@ -68,13 +71,15 @@ class NGUAgent:
             # Reset hidden state if it is the end of an episode.
             self.r2d2_actor.reset_hiddenstate_if_done(done)
             self.prev_act, self.prev_ext_rew = action, rew  # Update previous action result.
-            self.prev_int_rew = self.intrinsic_novelty.compute_intrinsic_novelty(self.prev_obs)
             # Fill n-step buffer.
             intrinsic_novelty = self.intrinsic_novelty.compute_intrinsic_novelty(next_obs)
             reward_augmented = rew + self.r2d2_actor.explr_beta * intrinsic_novelty
             nstep_buff.append(
                 Transition(self.prev_obs, self.prev_act, action, self.prev_int_rew,
                            self.prev_ext_rew, reward_augmented, next_obs, done))
+            self.prev_int_rew = intrinsic_novelty
+
+            self._reset_prev_if_done(done)
             # If we collected n-step transitions, compute n-step reward and store in the
             # sequence buffer.
             if len(nstep_buff) == self.n_step:
@@ -251,6 +256,7 @@ class NGUAgent:
         )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
         weights /= weights.max()
         weights = ptu.to_tensor(weights)
+
         self.r2d2_learner.step(td_errors, weights)
 
         # Update memory priorities with learner.
@@ -323,6 +329,12 @@ class NGUAgent:
         greedy_action = self.r2d2_learner.policy(obs, prev_act, prev_ext_rew, prev_int_rew,
                                                  beta_onehot).argmax(1, keepdim=True).cpu()
         return greedy_action
+
+    def _reset_prev_if_done(self, done):
+        self.prev_obs[done.squeeze(-1), :] = torch.zeros(self.obs_shape)
+        self.prev_act[done.squeeze(-1), :] = torch.zeros((1, ), dtype=torch.int64)
+        self.prev_ext_rew[done.squeeze(-1), :] = torch.zeros((1, ))
+        self.prev_int_rew[done.squeeze(-1), :] = torch.zeros((1, ))
 
     def to(self, device):
         self.r2d2_learner.to(device)

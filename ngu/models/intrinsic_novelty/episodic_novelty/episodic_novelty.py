@@ -3,6 +3,7 @@ import torch
 import ngu.utils.pytorch_util as ptu
 from ngu.utils.mpi_util import RunningMeanStd
 from ngu.models.intrinsic_novelty.episodic_novelty.embedding import Embedding
+from ngu.utils import profile
 
 
 class EpisodicNovelty:
@@ -34,6 +35,7 @@ class EpisodicNovelty:
         self.memory_idx = 0
         self.update_count = 0
 
+    @profile
     @torch.no_grad()
     def compute_episodic_novelty(self, obs):
         """Compute episodic novelty. Take a look at NGU paper Algorithm 1.
