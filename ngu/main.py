@@ -42,7 +42,7 @@ def main():
     ngu_agent.collect_minimum_sequences()  # Collect minimum experience to run replay.
 
     if args.video_save_interval is not None:
-        record_env = RecordRunner(args.env_id, args.seed + 1, log_root)
+        record_env = RecordRunner(args.env_id, args.n_actors + 1, log_root)
 
     for param_update_count in count(0):
         ngu_agent.step()  # Update parameters single step.

@@ -12,7 +12,6 @@ from ngu.models.common.type import Hiddenstate
 
 class DuelingLSTM(nn.Module):
     """Dueling LSTM Model of R2D2"""
-
     def __init__(self, n_act, obs_shape=(1, 84, 84), model_hypr=model_hypr):
         """Initialize R2D2 Agebt Architecture."""
         super(DuelingLSTM, self).__init__()
