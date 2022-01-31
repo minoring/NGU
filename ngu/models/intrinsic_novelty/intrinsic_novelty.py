@@ -3,12 +3,12 @@ import torch
 from ngu.utils.mpi_util import RunningMeanStd
 from ngu.models.intrinsic_novelty.lifelong_novelty import LifelongNovelty
 from ngu.models.intrinsic_novelty.episodic_novelty import EpisodicNovelty
+import ngu.utils.pytorch_util as ptu
 
 
 class IntrinsicNovelty:
     """Intrinsic novelty (or exploration bonus) for better exploration.
     This intrinsic novelty is composed of episodic and life-long novelty."""
-
     def __init__(self, n_actors, n_act, obs_shape, model_hypr, logger):
         self.logger = logger
         self.ll_novel = LifelongNovelty(obs_shape, model_hypr, logger)
@@ -35,8 +35,9 @@ class IntrinsicNovelty:
 
     def reset_memory_if_done(self, done):
         """Reset the agent's memory if it is done."""
+        done = done.to(ptu.device)
         self.epi_novel.episodic_memory[:, done.squeeze(-1), :] = torch.zeros(
-            (self.epi_novel.capacity, 1, self.epi_novel.controllable_state_dim))
+            (self.epi_novel.capacity, 1, self.epi_novel.controllable_state_dim), device=ptu.device)
 
     def to(self, device):
         self.ll_novel.to(device)

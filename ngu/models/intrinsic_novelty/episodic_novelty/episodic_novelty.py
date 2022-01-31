@@ -45,8 +45,7 @@ class EpisodicNovelty:
         batch_size = len(obs)
         obs = obs.to(ptu.device)
         # Compute the embedding
-        controllable_state = self.embedding(obs)
-        controllable_state = controllable_state.detach().cpu()
+        controllable_state = self.embedding(obs).detach()
         # Compute Euclidean distance.
         # Output is BatchSize x MemorySize where element at index (i, j) is distance
         # between ith batch state and jth memory state.
@@ -55,15 +54,16 @@ class EpisodicNovelty:
         # Compute k-nearest neighbor
         k_neighbor = euc_dist.topk(self.model_hypr['num_neighbors'], dim=0)
         # Update the moving average.
-        self.ed_rms.update(k_neighbor.values.transpose(1, 0))
+        self.ed_rms.update(ptu.to_numpy(k_neighbor.values.transpose(1, 0)))
         # Normalize Euclidean distance.
-        normalized_dist = k_neighbor.values / torch.tensor(self.ed_rms.mean).unsqueeze(-1).float()
+        normalized_dist = k_neighbor.values / ptu.to_tensor(self.ed_rms.mean).unsqueeze(-1)
         # Cluster the normalized distance, i.e. they become 0 if too small.
-        clustered_dist = torch.max(normalized_dist - self.model_hypr['cluster_distance'],
-                                   torch.zeros((
-                                       self.model_hypr['num_neighbors'],
-                                       batch_size,
-                                   )))
+        clustered_dist = torch.max(
+            normalized_dist - self.model_hypr['cluster_distance'],
+            torch.zeros((
+                self.model_hypr['num_neighbors'],
+                batch_size,
+            ), device=ptu.device))
         # Compute the Kernel values between the embedding and its neighbors
         kernel_value = self.model_hypr['kernel_epsilon'] / (clustered_dist +
                                                             self.model_hypr['kernel_epsilon'])
@@ -75,18 +75,18 @@ class EpisodicNovelty:
         # If it is bigger than max, use zero.
         r_intrinsic = 1 / similarity
         greater_than_max_idxs = similarity > self.model_hypr['kernel_maximum_similarity']
-        r_intrinsic[greater_than_max_idxs] = torch.zeros((1, ))  # Use broadcast to fill in numbers.
+        r_intrinsic[greater_than_max_idxs] = torch.zeros(
+            (1, ), device=ptu.device)  # Use broadcast to fill in numbers.
         # Insert controllable state into episodic memory.
         self.insert_state(controllable_state)
-
         # Update running mean, std of episodic novelty.
-        self.epi_novel_rms.update(r_intrinsic.numpy())
+        self.epi_novel_rms.update(ptu.to_numpy(r_intrinsic))
 
-        return r_intrinsic
+        return r_intrinsic.detach().cpu()
 
     def insert_state(self, controllable_state):
         """Insert the embedding to the episodic novelty memory."""
-        self.episodic_memory[self.memory_idx] = controllable_state
+        self.episodic_memory[self.memory_idx] = controllable_state.clone()
         self.memory_idx = (self.memory_idx + 1) % self.capacity
 
     def step(self, timestep_seq):
@@ -100,3 +100,4 @@ class EpisodicNovelty:
 
     def to(self, device):
         self.embedding.to(device)
+        self.episodic_memory = self.episodic_memory.to(device)
