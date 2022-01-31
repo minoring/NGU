@@ -238,49 +238,51 @@ class NGUAgent:
 
     @profile
     def step(self):
-        """Single step update of NGU agent"""
+        """NUM_ACTORS / BATCH_SIZE steps update of NGU agent"""
         assert len(self.memory) >= self.model_hypr['minimum_sequences_to_start_replay']
-        sequences, priorities, sequence_idxs = self.memory.sample(self.model_hypr['batch_size'])
-        timestep_seq = self._batch_seq_to_timestep_seq(sequences)
 
-        # Update intrinsic modules.
-        self.intrinsic_novelty.step(
-            timestep_seq.transitions[:self.model_hypr['num_frame_intrinsic_train']])
+        for _ in range(self.n_actors // self.model_hypr['batch_size']):
+            sequences, priorities, sequence_idxs = self.memory.sample(self.model_hypr['batch_size'])
+            timestep_seq = self._batch_seq_to_timestep_seq(sequences)
 
-        # Update the learner.
-        self.burn_in(self.r2d2_learner, timestep_seq)
-        td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
-                                          timestep_seq)
-        weights = (len(self.memory) * np.array(priorities) / self.memory.total_prios)**(
-            -self.model_hypr['beta']
-        )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
-        weights /= weights.max()
-        weights = ptu.to_tensor(weights)
+            # Update intrinsic modules.
+            self.intrinsic_novelty.step(
+                timestep_seq.transitions[:self.model_hypr['num_frame_intrinsic_train']])
 
-        self.r2d2_learner.step(td_errors, weights)
+            # Update the learner.
+            self.burn_in(self.r2d2_learner, timestep_seq)
+            td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
+                                            timestep_seq)
+            weights = (len(self.memory) * np.array(priorities) / self.memory.total_prios)**(
+                -self.model_hypr['beta']
+            )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
+            weights /= weights.max()
+            weights = ptu.to_tensor(weights)
 
-        # Update memory priorities with learner.
-        new_priorities = self.compute_priorities(td_errors)
-        self.memory.update_priorities(sequence_idxs, ptu.to_list(new_priorities.squeeze(-1)))
+            self.r2d2_learner.step(td_errors, weights)
 
-        # Update parameters after N learning steps.
-        self.update_count += 1
-        if self.update_count % self.model_hypr['actor_update_period'] == 0:
-            print(f"Actors fetch parameters from learner, [learning step: {self.update_count}]")
-            self.r2d2_actor.policy.load_state_dict(self.r2d2_learner.policy.state_dict())
-            self.r2d2_actor.target.load_state_dict(self.r2d2_actor.policy.state_dict())
-        if self.update_count % self.model_hypr['target_q_update_period'] == 0:
-            print(f"Updating target Q of learner. [learning step: {self.update_count}]")
-            self.r2d2_learner.target.load_state_dict(self.r2d2_learner.policy.state_dict())
+            # Update memory priorities with learner.
+            new_priorities = self.compute_priorities(td_errors)
+            self.memory.update_priorities(sequence_idxs, ptu.to_list(new_priorities.squeeze(-1)))
 
-        # Log memory size.
-        self.logger.log_scalar('MemorySize', len(self.memory), self.update_count)
-        # Every n learning steps, any excess data about the memory capacity threshold is removed in FIFO order.
-        if self.update_count % self.model_hypr['remove_to_fit_interval'] == 0:
-            print(f"Removing memory to fit capacity. [learning step: {self.update_count}]")
-            print(f"Before the removal, memory size: {len(self.memory)}")
-            self.memory.remove_to_fit()
-            print(f"After the removal, memory size: {len(self.memory)}")
+            # Update parameters after N learning steps.
+            self.update_count += 1
+            if self.update_count % self.model_hypr['actor_update_period'] == 0:
+                print(f"Actors fetch parameters from learner, [learning step: {self.update_count}]")
+                self.r2d2_actor.policy.load_state_dict(self.r2d2_learner.policy.state_dict())
+                self.r2d2_actor.target.load_state_dict(self.r2d2_actor.policy.state_dict())
+            if self.update_count % self.model_hypr['target_q_update_period'] == 0:
+                print(f"Updating target Q of learner. [learning step: {self.update_count}]")
+                self.r2d2_learner.target.load_state_dict(self.r2d2_learner.policy.state_dict())
+
+            # Log memory size.
+            self.logger.log_scalar('MemorySize', len(self.memory), self.update_count)
+            # Every n learning steps, any excess data about the memory capacity threshold is removed in FIFO order.
+            if self.update_count % self.model_hypr['remove_to_fit_interval'] == 0:
+                print(f"Removing memory to fit capacity. [learning step: {self.update_count}]")
+                print(f"Before the removal, memory size: {len(self.memory)}")
+                self.memory.remove_to_fit()
+                print(f"After the removal, memory size: {len(self.memory)}")
 
     def _batch_seq_to_timestep_seq(self, sequences):
         """Convert batch of sequence that is sampled from the memory to the format that the training loop expects (timestep_seq).
