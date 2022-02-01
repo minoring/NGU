@@ -93,7 +93,6 @@ class NGUAgent:
         timestep_seq = Sequence(init_recurr_state, transitions, intrinsic_factor, discount_factor)
         # Temporarily store hidden states.
         policy_hidden_state = self.r2d2_actor.policy.get_hidden_state()
-        target_hidden_state = self.r2d2_actor.target.get_hidden_state()
         self.burn_in(self.r2d2_actor, timestep_seq)
         # Compute TD error.
         td_errors = self.compute_td_error(self.n_actors, self.r2d2_actor, timestep_seq)
@@ -106,7 +105,6 @@ class NGUAgent:
 
         # Recover hidden states.
         self.r2d2_actor.policy.set_hidden_state(policy_hidden_state)
-        self.r2d2_actor.target.set_hidden_state(target_hidden_state)
 
     @profile
     def batch_seq_from_timestep_seq(self, timestep_seq):

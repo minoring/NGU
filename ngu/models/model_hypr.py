@@ -21,6 +21,7 @@ model_hypr = dict(
     adam_beta2=0.999,
     adam_clip_norm=40,
     batch_size=64,
+    action_prediction_l2_weight=0.00001,
     # R2D2.
     trace_length=80,
     replay_period=40,

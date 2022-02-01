@@ -12,7 +12,6 @@ class Embedding(nn.Module):
     """Mapping the current observation to a learned representation that the NGU paper refer to as controllable state.
     This can be thought as Siamese network to predict the action taken by the agent to go from one observation to the next.
     """
-
     def __init__(self, n_act, obs_shape, ctrl_state_dim, model_hypr, logger):
         super(Embedding, self).__init__()
         self.n_act = n_act
@@ -39,7 +38,8 @@ class Embedding(nn.Module):
         self.optimizer = optim.Adam(list(self.siamese.parameters()) + list(self.h.parameters()),
                                     lr=model_hypr['learning_rate_action_prediction'],
                                     betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
-                                    eps=model_hypr['adam_epsilon'])
+                                    eps=model_hypr['adam_epsilon'],
+                                    weight_decay=self.model_hypr['action_prediction_l2_weight'])
         self.criterion = nn.CrossEntropyLoss()
         self.update_count = 0
 
