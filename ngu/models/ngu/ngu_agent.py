@@ -241,7 +241,7 @@ class NGUAgent:
         """NUM_ACTORS / BATCH_SIZE steps update of NGU agent"""
         assert len(self.memory) >= self.model_hypr['minimum_sequences_to_start_replay']
 
-        for _ in range(self.n_actors // self.model_hypr['batch_size']):
+        for _ in range(max(1, self.n_actors // self.model_hypr['batch_size'])):
             sequences, priorities, sequence_idxs = self.memory.sample(self.model_hypr['batch_size'])
             timestep_seq = self._batch_seq_to_timestep_seq(sequences)
 
