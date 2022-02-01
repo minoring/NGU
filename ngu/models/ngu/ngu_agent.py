@@ -56,6 +56,7 @@ class NGUAgent:
         intrinsic_factor = self.r2d2_actor.explr_beta_onehot
         discount_factor = self.r2d2_actor.discounts
         nstep_buff = deque(maxlen=self.n_step)
+        actor_done_mask = torch.zeros((self.n_actors, 1))
         # Collect NUM_TOTAL_STEP transitions.
         for _ in range(self.num_total_step):
             action = self.r2d2_actor.get_eps_greedy_action(self.prev_obs, self.prev_act,
@@ -64,6 +65,7 @@ class NGUAgent:
 
             # Here done was numpy boolean. Convert it into tensor.
             done = torch.tensor(done[..., np.newaxis])
+            actor_done_mask = torch.logical_or(done, actor_done_mask)
             # Reset memory if it is the end of an episode.
             self.intrinsic_novelty.reset_memory_if_done(done)
             # Reset hidden state if it is the end of an episode.
@@ -101,7 +103,7 @@ class NGUAgent:
         # L x STATE x NUM_ACTOR -> NUM_ACTOR x L x STATE -> L x STATE x NUM_ACTOR
         sequences = self.batch_seq_from_timestep_seq(timestep_seq)
         # Putting in prioritized replay memory.
-        self.memory.push(sequences, priorities)
+        self.memory.push(sequences, priorities, actor_done_mask)
 
         # Recover hidden states.
         self.r2d2_actor.policy.set_hidden_state(policy_hidden_state)

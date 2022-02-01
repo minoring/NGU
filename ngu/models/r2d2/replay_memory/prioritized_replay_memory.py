@@ -10,9 +10,13 @@ class PrioritizedReplayMemory:
         self.sequences = deque()
         self.priorities = SumTree()
 
-    def push(self, sequences, priorities):
-        self.sequences.extend(sequences)
-        self.priorities.extend(priorities)
+    def push(self, sequences, priorities, actor_done_mask):
+        for i in range(len(sequences)):
+            # Do not include to the memory if the episode ends in the middle of sequence.
+            if actor_done_mask[i].item():
+                continue
+            self.sequences.append(sequences[i])
+            self.priorities.append(priorities[i])
 
     def sample(self, batch_size):
         idxs, prios = self.priorities.prioritized_sample(batch_size)
