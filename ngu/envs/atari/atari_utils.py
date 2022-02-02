@@ -34,7 +34,7 @@ def make_atari_env(env_id, seed, rank, env_hypr, monitor_dir, video_dir):
 
         monitor_path = os.path.join(monitor_dir, f'{rank}')
         # Log episodic reward, episode length and misc information.
-        env = Monitor(env, monitor_path, allow_early_resets=True)
+        env = Monitor(env, monitor_path, allow_early_resets=True, info_keywords=('visited_rooms',))
 
         if video_dir is not None:
             env = gym.wrappers.Monitor(env, video_dir)
