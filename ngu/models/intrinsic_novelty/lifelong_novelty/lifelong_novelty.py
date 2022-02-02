@@ -6,6 +6,7 @@ import torch.optim as optim
 import ngu.utils.pytorch_util as ptu
 from ngu.models.intrinsic_novelty.lifelong_novelty.rnd_prediction import RNDPrediction
 from ngu.utils.mpi_util import RunningMeanStd
+from ngu.utils.mpi_util import RunningMeanStd
 
 
 class LifelongNovelty(nn.Module):
@@ -13,7 +14,6 @@ class LifelongNovelty(nn.Module):
     It calculate the intrinsic novelty by calculating prediction error between randomly initialized
     neural net (target) and trained one (predictor).
     """
-
     def __init__(self, obs_shape, model_hypr, logger):
         super(LifelongNovelty, self).__init__()
         self.obs_shape = obs_shape
@@ -24,6 +24,7 @@ class LifelongNovelty(nn.Module):
         # standard deviations of the intrinsic returns.
         # Burda et al., 2018.
         self.ll_rms = RunningMeanStd(use_mpi=False)
+        self.rnd_loss_rms = RunningMeanStd(use_mpi=False)
 
         self.predictor = RNDPrediction(obs_shape, model_hypr)
         self.target = RNDPrediction(obs_shape, model_hypr)
@@ -56,7 +57,6 @@ class LifelongNovelty(nn.Module):
         return torch.from_numpy(modulator)
 
     def step(self, timestep_seq):
-        loss_avg = 0.
         for t in range(len(timestep_seq)):
             pred_f, targ_f = self(timestep_seq[t].state.to(ptu.device))
             loss = self.criterion(targ_f, pred_f)
@@ -64,11 +64,10 @@ class LifelongNovelty(nn.Module):
             loss.backward()
             nn.utils.clip_grad_norm_(self.predictor.parameters(), self.model_hypr['adam_clip_norm'])
             self.optimizer.step()
-            loss_avg = loss_avg + (1 / (t + 1)) * (loss.item() - loss_avg)
-        print("RND Loss: {:.4f}".format(loss_avg))
+            self.rnd_loss_rms.update(loss.item())
 
         self.update_count += 1
-        self.logger.log_scalar('RNDLoss', loss_avg, self.update_count)
+        self.logger.log_scalar('RNDLoss', self.rnd_loss_rms.mean, self.update_count)
         self.logger.log_scalar('LifelongNoveltyMean', self.ll_rms.mean, self.update_count)
         self.logger.log_scalar('LifelongNoveltyVar', self.ll_rms.var, self.update_count)
 

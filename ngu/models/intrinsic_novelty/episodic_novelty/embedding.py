@@ -6,6 +6,7 @@ from torch.nn import init
 import ngu.utils.pytorch_util as ptu
 from ngu.models.utils import conv2d_out
 from ngu.models.common import weight_init
+from ngu.utils.mpi_util import RunningMeanStd
 
 
 class Embedding(nn.Module):
@@ -19,6 +20,7 @@ class Embedding(nn.Module):
         self.ctrl_state_dim = ctrl_state_dim
         self.model_hypr = model_hypr
         self.logger = logger
+        self.ap_rms = RunningMeanStd(use_mpi=False)
 
         h = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[1], 4, 4), 4, 2), 3, 1)
         w = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[2], 4, 4), 4, 2), 3, 1)
@@ -48,7 +50,6 @@ class Embedding(nn.Module):
 
     def step(self, timestep_seq):
         # Trained via maximum likelihood.
-        loss_avg = 0.
         for t in range(len(timestep_seq)):
             f_curr = self(timestep_seq[t].state.to(ptu.device))
             f_next = self(timestep_seq[t].next_state.to(ptu.device))
@@ -61,7 +62,6 @@ class Embedding(nn.Module):
                 list(self.siamese.parameters()) + list(self.h.parameters()),
                 self.model_hypr['adam_clip_norm'])
             self.optimizer.step()
-            loss_avg = loss_avg + (1 / (t + 1)) * (loss.item() - loss_avg)
-        print("Action Prediction Loss: {:.4f}".format(loss_avg))
+            self.ap_rms.update(loss.item())
         self.update_count += 1
-        self.logger.log_scalar('ActionpredictionLoss', loss_avg, self.update_count)
+        self.logger.log_scalar('ActionpredictionLoss', self.ap_rms.mean, self.update_count)

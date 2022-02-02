@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ngu.models.r2d2.dueling_lstm import DuelingLSTM
+from ngu.utils.mpi_util import RunningMeanStd
 
 
 class R2D2Learner:
@@ -9,7 +10,6 @@ class R2D2Learner:
     Modified version of Recurrent Experience Replay in Distributed Reinforcement Learning (Kapturowski et al., 2019),
     as introduced in the NGU paper.
     """
-
     def __init__(self, n_act, obs_shape, replay_memory, model_hypr, logger):
         """
         Args:
@@ -36,6 +36,7 @@ class R2D2Learner:
             param.requires_grad = False
 
         self.update_count = 0
+        self.r2d2_loss_rms = RunningMeanStd(use_mpi=False)
 
     def step(self, td_errors, weights):
         """Update policy parameters given memory is collected.
@@ -49,9 +50,9 @@ class R2D2Learner:
         loss.backward()
         nn.utils.clip_grad_norm_(self.policy.parameters(), self.model_hypr['adam_clip_norm'])
         self.optimizer.step()
-        print("R2D2 Learner Loss: {:.4f}".format(loss.item()))
         self.update_count += 1
-        self.logger.log_scalar('R2D2Loss', loss.item(), self.update_count)
+        self.r2d2_loss_rms.update(loss.item())
+        self.logger.log_scalar('R2D2Loss', self.r2d2_loss_rms.mean, self.update_count)
         self.logger.log_scalar('R2D2ISWeightMean', weights.mean().item(), self.update_count)
         self.logger.log_scalar('R2D2ISWeightVar', weights.var().item(), self.update_count)
 
