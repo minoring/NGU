@@ -3,7 +3,6 @@ import torch
 import ngu.utils.pytorch_util as ptu
 from ngu.utils.mpi_util import RunningMeanStd
 from ngu.models.intrinsic_novelty.episodic_novelty.embedding import Embedding
-from ngu.utils import profile
 
 
 class EpisodicNovelty:

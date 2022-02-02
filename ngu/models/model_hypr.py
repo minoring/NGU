@@ -35,6 +35,9 @@ model_hypr = dict(
     target_q_update_period=1500,
     n_step=5,  # n-step TD error.
     beta=0.4,  # Beta0 of prioritized replay memory.
+    # The number of steps per sequence collect.
+    # This number is roughly "time to collect sequence" / "time to update parameters".
+    step_per_collect=6,
     # Episodic memory.
     # Rough calculation of required memory.
     # **********

@@ -6,7 +6,6 @@ import torch.optim as optim
 import ngu.utils.pytorch_util as ptu
 from ngu.models.intrinsic_novelty.lifelong_novelty.rnd_prediction import RNDPrediction
 from ngu.utils.mpi_util import RunningMeanStd
-from ngu.utils import profile
 
 
 class LifelongNovelty(nn.Module):
