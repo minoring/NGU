@@ -252,7 +252,7 @@ class NGUAgent:
             # Update the learner.
             self.burn_in(self.r2d2_learner, timestep_seq)
             td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
-                                            timestep_seq)
+                                              timestep_seq)
             weights = (len(self.memory) * np.array(priorities) / self.memory.total_prios)**(
                 -self.model_hypr['beta']
             )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.

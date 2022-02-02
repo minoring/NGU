@@ -37,8 +37,8 @@ def to_device(tensors, device):
     return res
 
 
-def make_one_hot(val, idx, num_class):
+def make_one_hot(idx, num_class):
     """Make one-hot vector at idx filled with value."""
     one_hot = torch.zeros((num_class, ))
-    one_hot[idx] = val
+    one_hot[idx] = 1.0
     return one_hot

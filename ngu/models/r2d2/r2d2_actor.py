@@ -90,7 +90,7 @@ class R2D2Actor:
                 explr_beta[j] = beta
             else:
                 explr_beta[j] = beta * _sigmoid(10 * (2 * i - (self.N - 2)) / (self.N - 2))
-            explr_beta_onehot[j] = ptu.make_one_hot(explr_beta[j], i, self.N)
+            explr_beta_onehot[j] = ptu.make_one_hot(i, self.N)
         return explr_beta, explr_beta_onehot
 
     def _compute_discount_factor(self):
