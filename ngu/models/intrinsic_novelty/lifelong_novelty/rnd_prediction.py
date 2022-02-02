@@ -24,7 +24,7 @@ class RNDPrediction(nn.Module):
         self.flatten = nn.Flatten()
         h = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[1], 4, 4), 4, 2), 3, 1)
         w = conv2d_out(conv2d_out(conv2d_out(self.obs_shape[2], 4, 4), 4, 2), 3, 1)
-        self.fc = weight_init(nn.Linear(h * w * 64, 128), init.calculate_gain('linear'))
+        self.fc = weight_init(nn.Linear(h * w * 64, 128), gain=0.01)
 
     def forward(self, obs):
         x = F.relu(self.conv1(obs))

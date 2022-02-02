@@ -36,9 +36,9 @@ class DuelingLSTM(nn.Module):
         self.cx = torch.zeros(batch_size, self.hidden_units)
         # Dueling Architecture.
         self.adv1 = weight_init(nn.Linear(self.hidden_units, 512))
-        self.adv2 = weight_init(nn.Linear(512, self.n_act), gain=init.calculate_gain('linear'))
+        self.adv2 = weight_init(nn.Linear(512, self.n_act), gain=0.01)
         self.val1 = weight_init(nn.Linear(self.hidden_units, 512))
-        self.val2 = weight_init(nn.Linear(512, 1), gain=init.calculate_gain('linear'))
+        self.val2 = weight_init(nn.Linear(512, 1), gain=0.01)
 
     def forward(self, obs, act, int_rew, ext_rew, beta):
         """Dueling network forward pass. Compute Q with V and Adv.

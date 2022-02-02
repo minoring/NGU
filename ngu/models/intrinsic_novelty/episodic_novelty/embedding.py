@@ -33,7 +33,7 @@ class Embedding(nn.Module):
             nn.ReLU(),
             weight_init(nn.Linear(self.ctrl_state_dim * 2, 128)),
             nn.ReLU(),
-            weight_init(nn.Linear(128, n_act), init.calculate_gain('linear')))
+            weight_init(nn.Linear(128, n_act), gain=0.01))
 
         self.optimizer = optim.Adam(list(self.siamese.parameters()) + list(self.h.parameters()),
                                     lr=model_hypr['learning_rate_action_prediction'],
