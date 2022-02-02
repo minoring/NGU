@@ -73,16 +73,16 @@ class EpisodicNovelty:
             dim=0).sqrt() + self.model_hypr['kernel_pseudo_counts_constant']
         # Only use similarities that is smaller than maximum similarity.
         # If it is bigger than max, use zero.
-        r_intrinsic = 1 / similarity
+        r_episodic = 1 / similarity
         greater_than_max_idxs = similarity > self.model_hypr['kernel_maximum_similarity']
-        r_intrinsic[greater_than_max_idxs] = torch.zeros(
+        r_episodic[greater_than_max_idxs] = torch.zeros(
             (1, ), device=ptu.device)  # Use broadcast to fill in numbers.
         # Insert controllable state into episodic memory.
         self.insert_state(controllable_state)
         # Update running mean, std of episodic novelty.
-        self.epi_novel_rms.update(ptu.to_numpy(r_intrinsic))
+        self.epi_novel_rms.update(ptu.to_numpy(r_episodic))
 
-        return r_intrinsic.detach().cpu()
+        return r_episodic.detach().cpu()
 
     def insert_state(self, controllable_state):
         """Insert the embedding to the episodic novelty memory."""
@@ -94,7 +94,7 @@ class EpisodicNovelty:
 
         self.update_count += 1
         self.logger.log_scalar('EpisodicNoveltyMean', self.epi_novel_rms.mean, self.update_count)
-        self.logger.log_scalar('EpisodicNoveltyVar', self.epi_novel_rms.mean, self.update_count)
+        self.logger.log_scalar('EpisodicNoveltyVar', self.epi_novel_rms.var, self.update_count)
         self.logger.log_scalar('KNeighborEucDistMean', self.ed_rms.mean.mean(), self.update_count)
         self.logger.log_scalar('KNeighborEucDistVar', self.ed_rms.var.mean(), self.update_count)
 
