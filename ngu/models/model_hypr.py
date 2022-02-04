@@ -60,10 +60,8 @@ model_hypr = dict(
     # 5M x 120 x (1 x 84 x 84 x 2) x 32 / 8 / 10^9 = 16934 GB.
     # **********
     # replay_capacity=5000000 // 120,  # 5M / SEQUENCE_LENGTH
-    # minimum_sequences_to_start_replay=6250,
     replay_capacity=5000000 // 120,
-    # minimum_sequences_to_start_replay=4096,
-    minimum_sequences_to_start_replay=1024,
+    minimum_sequences_to_start_replay=6250,
     # Last N frames of the sampled sequences to trian the action prediction networkand RND.trinsic novelty.
     num_frame_intrinsic_train=5,
 )
