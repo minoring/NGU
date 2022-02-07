@@ -53,8 +53,6 @@ class R2D2Learner:
         self.update_count += 1
         self.r2d2_loss_rms.update(loss.item())
         self.logger.log_scalar('R2D2Loss', self.r2d2_loss_rms.mean, self.update_count)
-        self.logger.log_scalar('R2D2ISWeightMean', weights.mean().item(), self.update_count)
-        self.logger.log_scalar('R2D2ISWeightVar', weights.var().item(), self.update_count)
 
     def to(self, device):
         self.policy.to(device)

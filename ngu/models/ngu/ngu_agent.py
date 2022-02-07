@@ -9,6 +9,7 @@ from ngu.models.r2d2.replay_memory import PrioritizedReplayMemory
 from ngu.models.intrinsic_novelty import IntrinsicNovelty
 from ngu.models.common.type import Transition, Sequence, Hiddenstate
 from ngu.utils import profile
+from ngu.utils.mpi_util import RunningMeanStd
 
 
 class NGUAgent:
@@ -39,6 +40,8 @@ class NGUAgent:
         self.prev_act = torch.zeros((self.n_actors, 1), dtype=torch.int64)
         self.prev_ext_rew = torch.zeros((self.n_actors, 1))  # Previous extrinsic reward.
         self.prev_int_rew = torch.zeros((self.n_actors, 1))  # Previous intrinsic reward.
+
+        self.weights_rms = RunningMeanStd()
 
         self.update_count = 0
 
@@ -243,7 +246,7 @@ class NGUAgent:
 
         num_update_step = max(
             1,
-            (self.n_actors // self.model_hypr['batch_size'] * self.model_hypr['step_per_collect']))
+            (self.n_actors // self.model_hypr['batch_size'])) * self.model_hypr['step_per_collect']
         for _ in range(num_update_step):
             sequences, priorities, sequence_idxs = self.memory.sample(self.model_hypr['batch_size'])
             timestep_seq = self._batch_seq_to_timestep_seq(sequences)
@@ -256,9 +259,12 @@ class NGUAgent:
             self.burn_in(self.r2d2_learner, timestep_seq)
             td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
                                               timestep_seq)
+            beta = min(
+                1.0, self.model_hypr['beta0'] + (1.0 - self.model_hypr['beta0']) /
+                self.model_hypr['beta_decay'] * self.update_count)
             weights = (len(self.memory) * np.array(priorities) / self.memory.total_prios)**(
-                -self.model_hypr['beta']
-            )  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
+                -beta)  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
+            self.weights_rms.update(weights)
             weights /= weights.max()
             weights = ptu.to_tensor(weights)
 
@@ -267,8 +273,7 @@ class NGUAgent:
             # Update memory priorities with learner.
             new_priorities = self.compute_priorities(td_errors)
             self.memory.update_priorities(sequence_idxs, ptu.to_list(new_priorities.squeeze(-1)))
-
-            # Update parameters after N learning steps.
+                        # Update parameters after N learning steps.
             self.update_count += 1
             if self.update_count % self.model_hypr['actor_update_period'] == 0:
                 print(f"Actors fetch parameters from learner, [learning step: {self.update_count}]")
@@ -280,6 +285,9 @@ class NGUAgent:
 
             # Log memory size.
             self.logger.log_scalar('MemorySize', len(self.memory), self.update_count)
+            self.logger.log_scalar('R2D2ISWeightMean', self.weights_rms.mean, self.update_count)
+            self.logger.log_scalar('R2D2ISWeightVar', weights.var, self.update_count)
+
             # Every n learning steps, any excess data about the memory capacity threshold is removed in FIFO order.
             if self.update_count % self.model_hypr['remove_to_fit_interval'] == 0:
                 print(f"Removing memory to fit capacity. [learning step: {self.update_count}]")
