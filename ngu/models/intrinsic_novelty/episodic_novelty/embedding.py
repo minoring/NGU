@@ -28,7 +28,7 @@ class Embedding(nn.Module):
         self.siamese = nn.Sequential(
             weight_init(nn.Conv2d(obs_shape[0], 32, kernel_size=8, stride=4)), nn.ReLU(),
             weight_init(nn.Conv2d(32, 64, kernel_size=4, stride=2)), nn.ReLU(),
-            weight_init(nn.Conv2d(64, 64, kernel_size=3, stride=1)), nn.Flatten(),
+            weight_init(nn.Conv2d(64, 64, kernel_size=3, stride=1)), nn.ReLU(), nn.Flatten(),
             weight_init(nn.Linear(h * w * 64, self.ctrl_state_dim)))
         self.h = nn.Sequential(
             # 32 for current observation, the other 32 for next observation.
