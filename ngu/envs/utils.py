@@ -65,7 +65,7 @@ def get_env_hypr(env_id):
 
 
 def is_atari(env_id):
-    env_list = ['MontezumaRevenge']
+    env_list = ['MontezumaRevenge', 'Breakout', 'Pitfall']
     return list_item_in_s(env_list, env_id)
 
 
