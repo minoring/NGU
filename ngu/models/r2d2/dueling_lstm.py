@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import init
 
 import ngu.utils.pytorch_util as ptu
 from ngu.models import model_hypr
@@ -30,7 +29,7 @@ class DuelingLSTM(nn.Module):
         self.hidden_units = 512
         self.flatten = nn.Flatten()
         # Output of convolution + action shape + intrinsic reward shape + extrinsic reward shape + num mixture.
-        input_shape_lstm = h * w * 64 + (1 + 1 + 1 + self.N)
+        input_shape_lstm = h * w * 64 + (n_act + 1 + 1 + self.N)
         self.lstm = weight_init(nn.LSTMCell(input_shape_lstm, 512))
         self.hx = torch.zeros(batch_size, self.hidden_units)
         self.cx = torch.zeros(batch_size, self.hidden_units)
@@ -54,6 +53,7 @@ class DuelingLSTM(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = self.flatten(x)
+        act = ptu.make_one_hot_batch(act, self.n_act, device=ptu.device)
         x = torch.cat((x, act, int_rew, ext_rew, beta), dim=1)
         self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
         adv = F.relu(self.adv1(self.hx))

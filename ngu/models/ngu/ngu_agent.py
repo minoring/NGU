@@ -14,6 +14,7 @@ from ngu.utils.mpi_util import RunningMeanStd
 
 class NGUAgent:
     """NEVER GIVE UP!"""
+
     def __init__(self, envs, n_actors, n_act, obs_shape, model_hypr, logger):
         self.envs = envs
         self.n_actors = n_actors
@@ -273,7 +274,6 @@ class NGUAgent:
             # Update memory priorities with learner.
             new_priorities = self.compute_priorities(td_errors)
             self.memory.update_priorities(sequence_idxs, ptu.to_list(new_priorities.squeeze(-1)))
-                        # Update parameters after N learning steps.
             self.update_count += 1
             if self.update_count % self.model_hypr['actor_update_period'] == 0:
                 print(f"Actors fetch parameters from learner, [learning step: {self.update_count}]")
@@ -342,6 +342,12 @@ class NGUAgent:
         greedy_action = self.r2d2_learner.policy(obs, prev_act, prev_ext_rew, prev_int_rew,
                                                  beta_onehot).argmax(1, keepdim=True).cpu()
         return greedy_action
+
+    def init_obs_norm(self):
+        """Initializes observation normalization with data from random agent."""
+        print("Initializing observation normalization")
+        for s in range(self.model_hypr['init_obs_step']):
+            self.envs.step(torch.randint(0, self.n_act, (self.n_actors, 1)))
 
     def _reset_prev_if_done(self, done):
         self.prev_obs[done.squeeze(-1), :] = torch.zeros(self.obs_shape)

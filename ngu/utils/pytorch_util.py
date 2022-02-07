@@ -42,3 +42,10 @@ def make_one_hot(idx, num_class):
     one_hot = torch.zeros((num_class, ))
     one_hot[idx] = 1.0
     return one_hot
+
+
+def make_one_hot_batch(idxs, num_class, device):
+    batch_size = idxs.shape[0]
+    one_hot = torch.zeros((batch_size, num_class), device=device)
+    one_hot[:, idxs] = 1.0
+    return one_hot

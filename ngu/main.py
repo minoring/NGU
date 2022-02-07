@@ -15,6 +15,7 @@ from ngu.utils.logger import Logger
 from ngu.utils.record_runner import RecordRunner
 from ngu.utils import init_profile
 
+
 def main():
     args = get_args()
     set_global_seed(args.seed)
@@ -39,6 +40,8 @@ def main():
     train_logger = Logger(args.env_id, log_root)
     ngu_agent = NGUAgent(envs, args.n_actors, n_act, obs_shape, model_hypr, train_logger)
     ngu_agent.to(ptu.device)
+
+    ngu_agent.init_obs_norm()
 
     ngu_agent.collect_minimum_sequences()  # Collect minimum experience to run replay.
 

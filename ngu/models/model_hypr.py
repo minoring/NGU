@@ -12,6 +12,7 @@ model_hypr = dict(
     max_discount_intrinsic_reward=0.99,
     max_discount_extrinsic_reward=0.997,
     min_discount_extrinsic_reward=0.99,
+    init_obs_step=128, # Number of steps to initialize observation normalization.
     # Optimizer.
     learning_rate_r2d2=0.0001,
     learning_rate_rnd=0.0005,
