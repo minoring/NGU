@@ -48,7 +48,7 @@ class NGUAgent:
 
     @profile
     @torch.no_grad()
-    def collect_sequence(self):
+    def collect_sequence(self, random_policy=False):
         """Each Parallel actors collect a sequence for the training.
 
         Returns:
@@ -63,8 +63,11 @@ class NGUAgent:
         actor_done_mask = torch.zeros((self.n_actors, 1))
         # Collect NUM_TOTAL_STEP transitions.
         for _ in range(self.num_total_step):
-            action = self.r2d2_actor.get_eps_greedy_action(self.prev_obs, self.prev_act,
-                                                           self.prev_int_rew, self.prev_ext_rew)
+            if random_policy:
+                action = torch.randint(0, self.n_act, (self.n_actors, 1))
+            else:
+                action = self.r2d2_actor.get_eps_greedy_action(self.prev_obs, self.prev_act,
+                                                               self.prev_int_rew, self.prev_ext_rew)
             next_obs, rew, done, info = self.envs.step(action)
 
             # Here done was numpy boolean. Convert it into tensor.
@@ -224,8 +227,7 @@ class NGUAgent:
                  trans_targ.reward_extrinsic, trans_targ.done), ptu.device)
 
             next_act = agent.act_sel_net(obs_targ, prev_act_targ, prev_int_rew_targ,
-                                         prev_ext_rew_targ,
-                                         beta_onehot).argmax(dim=1, keepdim=True).detach()
+                                         prev_ext_rew_targ, beta_onehot).argmax(dim=1, keepdim=True)
             targ_Q = agent.target(obs_targ, prev_act_targ, prev_int_rew_targ, prev_ext_rew_targ,
                                   beta_onehot).gather(1, next_act).detach()
 
@@ -242,10 +244,10 @@ class NGUAgent:
         return td_errors
 
     def collect_minimum_sequences(self):
-        """Agents collect minimun sequence to start the replay."""
+        """Agents collect minimun sequence with random policy to start the replay."""
         print("Start collecting minimum sequence to train")
         while len(self.memory) < self.model_hypr['minimum_sequences_to_start_replay']:
-            self.collect_sequence()
+            self.collect_sequence(random_policy=True)
             print("Collected {}/{}, {:.1f}%".format(
                 len(self.memory), self.model_hypr['minimum_sequences_to_start_replay'],
                 (len(self.memory) / self.model_hypr['minimum_sequences_to_start_replay']) * 100))
