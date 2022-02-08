@@ -10,6 +10,7 @@ class R2D2Learner:
     Modified version of Recurrent Experience Replay in Distributed Reinforcement Learning (Kapturowski et al., 2019),
     as introduced in the NGU paper.
     """
+
     def __init__(self, n_act, obs_shape, replay_memory, model_hypr, logger):
         """
         Args:
@@ -26,13 +27,15 @@ class R2D2Learner:
         self.logger = logger
         # Initialize Policy Neural Net
         self.policy = DuelingLSTM(self.model_hypr['batch_size'], n_act, obs_shape, model_hypr)
+        self.act_sel_net = DuelingLSTM(self.model_hypr['batch_size'], n_act, obs_shape,
+                                       model_hypr)  # Network for Double Q learning, for action selection.
         self.target = DuelingLSTM(self.model_hypr['batch_size'], n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
         self.optimizer = optim.Adam(self.policy.parameters(),
                                     lr=model_hypr['learning_rate_r2d2'],
                                     betas=(model_hypr['adam_beta1'], model_hypr['adam_beta2']),
                                     eps=model_hypr['adam_epsilon'])
-        for param in self.target.parameters():
+        for param in list(self.target.parameters()) + list(self.act_sel_net.parameters()):
             param.requires_grad = False
 
         self.update_count = 0
@@ -56,4 +59,5 @@ class R2D2Learner:
 
     def to(self, device):
         self.policy.to(device)
+        self.act_sel_net.to(device)
         self.target.to(device)

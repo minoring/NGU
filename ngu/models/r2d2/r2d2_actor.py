@@ -31,10 +31,14 @@ class R2D2Actor:
         self.discounts = self._compute_discount_factor()
         # Initialize Policy Neural Net
         self.policy = DuelingLSTM(self.n_actors, n_act, obs_shape, model_hypr)
+        self.act_sel_net = DuelingLSTM(
+            self.n_actors, n_act, obs_shape,
+            model_hypr)  # Network for Double Q learning, for action selection.
         self.target = DuelingLSTM(self.n_actors, n_act, obs_shape, model_hypr)
         self.target.load_state_dict(self.policy.state_dict())
 
-        for param in list(self.policy.parameters()) + list(self.target.parameters()):
+        for param in (list(self.policy.parameters()) + list(self.target.parameters()) +
+                      list(self.act_sel_net.parameters())):
             param.requires_grad = False
 
     def reset_hiddenstate_if_done(self, done):
@@ -112,4 +116,5 @@ class R2D2Actor:
 
     def to(self, device):
         self.policy.to(device)
+        self.act_sel_net.to(device)
         self.target.to(device)

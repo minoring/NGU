@@ -99,7 +99,6 @@ class NGUAgent:
         timestep_seq = Sequence(init_recurr_state, transitions, intrinsic_factor, discount_factor)
         # Temporarily store hidden states.
         policy_hidden_state = self.r2d2_actor.policy.get_hidden_state()
-        self.burn_in(self.r2d2_actor, timestep_seq)
         # Compute TD error.
         td_errors = self.compute_td_error(self.n_actors, self.r2d2_actor, timestep_seq)
         priorities = self.compute_priorities(td_errors)
@@ -167,6 +166,7 @@ class NGUAgent:
         """Learner take burn-in period to recover hidden states."""
         # Set initial hidden states.
         agent.policy.set_hidden_state(timestep_seq.init_recurr_state)
+        agent.act_sel_net.set_hidden_state(timestep_seq.init_recurr_state)
         agent.target.set_hidden_state(timestep_seq.init_recurr_state)
         beta_onehot = timestep_seq.intrinsic_factor.to(ptu.device)
 
@@ -178,6 +178,7 @@ class NGUAgent:
             prev_ext_rew = transitions[t].reward_extrinsic.to(ptu.device)
             agent.policy(state, prev_act, prev_int_rew, prev_ext_rew, beta_onehot)
             agent.target(state, prev_act, prev_int_rew, prev_ext_rew, beta_onehot)
+        agent.act_sel_net.set_hidden_state(agent.policy.get_hidden_state())
 
         for t in range(self.replay_period, len(timestep_seq)):
             state = transitions[t].state.to(ptu.device)
@@ -185,6 +186,7 @@ class NGUAgent:
             prev_int_rew = transitions[t].reward_intrinsic.to(ptu.device)
             prev_ext_rew = transitions[t].reward_extrinsic.to(ptu.device)
             agent.target(state, prev_act, prev_int_rew, prev_ext_rew)
+            agent.act_sel_net(state, prev_act, prev_int_rew, prev_ext_rew)
 
     def compute_td_error(self, batch_size, agent, timestep_seq):
         """Compute TD-error.
@@ -199,6 +201,10 @@ class NGUAgent:
         Returns:
             TD-error, which is substraction Q from n-step target.
         """
+        agent.act_sel_net.load_state_dict(agent.policy.state_dict())
+
+        self.burn_in(agent, timestep_seq)
+
         td_errors = torch.zeros((self.seq_len - self.replay_period, batch_size, 1),
                                 device=ptu.device)
         for t in range(self.replay_period, self.seq_len):
@@ -216,8 +222,12 @@ class NGUAgent:
             obs_targ, prev_act_targ, prev_int_rew_targ, prev_ext_rew_targ, done_targ = ptu.to_device(
                 (trans_targ.state, trans_targ.prev_action, trans_targ.reward_intrinsic,
                  trans_targ.reward_extrinsic, trans_targ.done), ptu.device)
+
+            next_act = agent.act_sel_net(obs_targ, prev_act_targ, prev_int_rew_targ,
+                                         prev_ext_rew_targ,
+                                         beta_onehot).argmax(dim=1, keepdim=True).detach()
             targ_Q = agent.target(obs_targ, prev_act_targ, prev_int_rew_targ, prev_ext_rew_targ,
-                                  beta_onehot).max(dim=1, keepdim=True).values
+                                  beta_onehot).gather(1, next_act).detach()
 
             # TODO(minho): Convert it into transformed Retrace operator.
             # Now, using R2D2 loss.
@@ -257,7 +267,6 @@ class NGUAgent:
                 timestep_seq.transitions[:self.model_hypr['num_frame_intrinsic_train']])
 
             # Update the learner.
-            self.burn_in(self.r2d2_learner, timestep_seq)
             td_errors = self.compute_td_error(self.model_hypr['batch_size'], self.r2d2_learner,
                                               timestep_seq)
             beta = min(
@@ -286,7 +295,7 @@ class NGUAgent:
             # Log memory size.
             self.logger.log_scalar('MemorySize', len(self.memory), self.update_count)
             self.logger.log_scalar('R2D2ISWeightMean', self.weights_rms.mean, self.update_count)
-            self.logger.log_scalar('R2D2ISWeightVar', weights.var, self.update_count)
+            self.logger.log_scalar('R2D2ISWeightVar', self.weights_rms.var, self.update_count)
 
             # Every n learning steps, any excess data about the memory capacity threshold is removed in FIFO order.
             if self.update_count % self.model_hypr['remove_to_fit_interval'] == 0:
@@ -348,6 +357,7 @@ class NGUAgent:
         print("Initializing observation normalization")
         for s in range(self.model_hypr['init_obs_step']):
             self.envs.step(torch.randint(0, self.n_act, (self.n_actors, 1)))
+        self.envs.reset()
 
     def _reset_prev_if_done(self, done):
         self.prev_obs[done.squeeze(-1), :] = torch.zeros(self.obs_shape)
