@@ -12,7 +12,7 @@ model_hypr = dict(
     max_discount_intrinsic_reward=0.99,
     max_discount_extrinsic_reward=0.997,
     min_discount_extrinsic_reward=0.99,
-    init_obs_step=128, # Number of steps to initialize observation normalization.
+    init_obs_step=256, # Number of steps to initialize observation normalization.
     # Optimizer.
     learning_rate_r2d2=0.0001,
     learning_rate_rnd=0.0005,
@@ -41,9 +41,9 @@ model_hypr = dict(
     # The number of steps per sequence collect.
     # This number is roughly "time to collect sequence" / "time to update parameters".
     step_per_collect=5,
+    # **********
     # Episodic memory.
     # Rough calculation of required memory.
-    # **********
     # memory_capacity x num_actors x controllable_state x bits / byte / Giga
     # 30000 x 64 x 32 x 32 / 8 / 10^9 = 0.245 GB
     # **********
@@ -57,12 +57,12 @@ model_hypr = dict(
     replay_priority_exponent=0.9,
     remove_to_fit_interval=
     100,  # The number of learning step before removing sequences that exceed memory capacity.
+    # **********
     # Rough calculation for required memory size.
-    # **********
     # memory_capacity x sequence_length x transition_size x bits / byte / Giga
-    # 5M x 120 x (1 x 84 x 84 x 2) x 32 / 8 / 10^9 = 16934 GB.
+    # 5M x 120 x (1 x 84 x 84 x 2) x 32 / 8 / 10^9 // 120 = 141 GB.
+    # Empirically, it requires about ~240GB memory.
     # **********
-    # replay_capacity=5000000 // 120,  # 5M / SEQUENCE_LENGTH
     replay_capacity=5000000 // 120,
     minimum_sequences_to_start_replay=6250,
     # Last N frames of the sampled sequences to trian the action prediction networkand RND.trinsic novelty.
