@@ -30,7 +30,8 @@ model_hypr = dict(
     r2d2_reward_transformation_inverted=reward_transform_inverted,
     actor_update_period=
     100,  # Actor parameter update interval in terms of the number of parameter updates.
-    priority_exponent=0.9,  # eta in R2D2.
+    priority_exponent=0.9,
+    r2d2_eta=0.9,
     importance_sampling_exponent=0.6,
     intrinsic_reward_scale=0.3,  # Beta
     target_q_update_period=1500,

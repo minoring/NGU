@@ -157,7 +157,7 @@ class NGUAgent:
     def compute_priorities(self, td_errors):
         """Compute priorities of each actor's sequence."""
         # Compute priority from TD error.
-        eta = self.model_hypr['priority_exponent']
+        eta = self.model_hypr['r2d2_eta']
         priorities = eta * td_errors.abs().max(dim=0).values + (1.0 -
                                                                 eta) * td_errors.abs().mean(dim=0)
         return priorities
@@ -267,7 +267,7 @@ class NGUAgent:
                 -beta)  # Prioritized Experience Replay, Schaul et al., 2016, Algorithm 1.
             self.weights_rms.update(weights)
             weights /= weights.max()
-            weights = ptu.to_tensor(weights)
+            weights = ptu.to_tensor(weights).unsqueeze(-1)
 
             self.r2d2_learner.step(td_errors, weights)
 
