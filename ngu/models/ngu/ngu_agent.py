@@ -77,16 +77,13 @@ class NGUAgent:
             self.intrinsic_novelty.reset_memory_if_done(done)
             # Reset hidden state if it is the end of an episode.
             self.r2d2_actor.reset_hiddenstate_if_done(done)
-            self.prev_act, self.prev_ext_rew = action, rew  # Update previous action result.
             # Fill n-step buffer.
-            intrinsic_novelty = self.intrinsic_novelty.compute_intrinsic_novelty(next_obs)
-            reward_augmented = rew + self.r2d2_actor.explr_beta * intrinsic_novelty
+            intrinsic_novelty = self.r2d2_actor.explr_beta * self.intrinsic_novelty.compute_intrinsic_novelty(
+                next_obs)
+            reward_augmented = rew + intrinsic_novelty
             nstep_buff.append(
                 Transition(self.prev_obs, self.prev_act, action, self.prev_int_rew,
                            self.prev_ext_rew, reward_augmented, next_obs, done))
-            self.prev_int_rew = intrinsic_novelty
-
-            self._reset_prev_if_done(done)
             # If we collected n-step transitions, compute n-step reward and store in the
             # sequence buffer.
             if len(nstep_buff) == self.n_step:
@@ -97,7 +94,10 @@ class NGUAgent:
                 # Store in sequence buffer.
                 transitions.append(transition._replace(nstep_reward=nstep_reward))
                 # SEQ_LENGTH x NUM_ACTOR
+            self.prev_int_rew = intrinsic_novelty
+            self.prev_act, self.prev_ext_rew = action, rew  # Update previous action result.
             self.prev_obs = next_obs
+            self._reset_prev_if_done(done)
         # After collecting sequences, compute priority.
         timestep_seq = Sequence(init_recurr_state, transitions, intrinsic_factor, discount_factor)
         # Temporarily store hidden states.
