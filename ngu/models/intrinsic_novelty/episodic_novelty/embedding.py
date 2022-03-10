@@ -48,12 +48,12 @@ class Embedding(nn.Module):
     def forward(self, obs_curr):
         return self.siamese(obs_curr)
 
-    def step(self, timestep_seq):
+    def step(self, timestep_obs, timestep_next_obs, timestep_act):
         # Trained via maximum likelihood.
-        for t in range(len(timestep_seq)):
-            f_curr = self(timestep_seq[t].state.to(ptu.device))
-            f_next = self(timestep_seq[t].next_state.to(ptu.device))
-            action = timestep_seq[t].action.to(ptu.device).squeeze(-1)
+        for t in range(len(timestep_obs)):
+            f_curr = self(timestep_obs[t])
+            f_next = self(timestep_next_obs[t])
+            action = timestep_act[t]
             inverse_dynamic = self.h(torch.cat((f_curr, f_next), dim=1))
             self.optimizer.zero_grad()
             loss = self.criterion(inverse_dynamic, action)

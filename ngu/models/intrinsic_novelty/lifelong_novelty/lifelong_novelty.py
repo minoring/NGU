@@ -56,9 +56,9 @@ class LifelongNovelty(nn.Module):
         modulator = 1 + (err - self.ll_rms.mean) / np.sqrt(self.ll_rms.var)
         return torch.from_numpy(modulator)
 
-    def step(self, timestep_seq):
-        for t in range(len(timestep_seq)):
-            pred_f, targ_f = self(timestep_seq[t].state.to(ptu.device))
+    def step(self, timestep_obs):
+        for t in range(len(timestep_obs)):
+            pred_f, targ_f = self(timestep_obs[t])
             loss = self.criterion(targ_f, pred_f)
             self.optimizer.zero_grad()
             loss.backward()

@@ -12,7 +12,7 @@ model_hypr = dict(
     max_discount_intrinsic_reward=0.99,
     max_discount_extrinsic_reward=0.997,
     min_discount_extrinsic_reward=0.99,
-    init_obs_step=256, # Number of steps to initialize observation normalization.
+    init_obs_step=256,  # Number of steps to initialize observation normalization.
     # Optimizer.
     learning_rate_r2d2=0.0001,
     learning_rate_rnd=0.0005,
@@ -25,7 +25,8 @@ model_hypr = dict(
     action_prediction_l2_weight=0.00001,
     # R2D2.
     trace_length=80,
-    replay_period=40,
+    burnin_period=40,
+    overlapping_period=40,
     r2d2_reward_transform=reward_transform,
     r2d2_reward_transformation_inverted=reward_transform_inverted,
     actor_update_period=
@@ -36,11 +37,12 @@ model_hypr = dict(
     intrinsic_reward_scale=0.3,  # Beta
     target_q_update_period=1500,
     n_step=5,  # n-step TD error.
-    beta_decay=1000000, # 1M
+    beta_decay=1000000,  # 1M
     beta0=0.4,  # Beta0 of prioritized replay memory.
     # The number of steps per sequence collect.
     # This number is roughly "time to collect sequence" / "time to update parameters".
     step_per_collect=5,
+    lstm_hidden_units=512,  # The number of LSTM hidden units.
     # **********
     # Episodic memory.
     # Rough calculation of required memory.
@@ -55,15 +57,12 @@ model_hypr = dict(
     kernel_maximum_similarity=8,
     # Replay Memory.
     replay_priority_exponent=0.9,
-    remove_to_fit_interval=
-    100,  # The number of learning step before removing sequences that exceed memory capacity.
     # **********
     # Rough calculation for required memory size.
     # memory_capacity x sequence_length x transition_size x bits / byte / Giga
-    # 5M x 120 x (1 x 84 x 84 x 2) x 32 / 8 / 10^9 // 120 = 141 GB.
-    # Empirically, it requires about ~240GB memory.
+    # 15000 x 120 x (1 x 84 x 84) x 32 / 8 / 10^9 = 50 GB is required to save image.
     # **********
-    replay_capacity=5000000 // 120,
+    replay_capacity=15000,  # 15000 sequences, 15000 x 120 = 1,800,000 observations.
     minimum_sequences_to_start_replay=6250,
     # Last N frames of the sampled sequences to trian the action prediction networkand RND.trinsic novelty.
     num_frame_intrinsic_train=5,

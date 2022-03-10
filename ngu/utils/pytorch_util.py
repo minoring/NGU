@@ -37,6 +37,13 @@ def to_device(tensors, device):
     return res
 
 
+def transpose_batch(tensors):
+    res = []
+    for t in tensors:
+        res.append(torch.transpose(t, 1, 0))
+    return res
+
+
 def make_one_hot(idx, num_class):
     """Make one-hot vector at idx filled with value."""
     one_hot = torch.zeros((num_class, ))
@@ -44,8 +51,8 @@ def make_one_hot(idx, num_class):
     return one_hot
 
 
-def make_one_hot_batch(idxs, num_class, device):
+def make_one_hot_batch(idxs, num_class):
     batch_size = idxs.shape[0]
-    one_hot = torch.zeros((batch_size, num_class), device=device)
+    one_hot = torch.zeros((batch_size, num_class), device=idxs.device)
     one_hot[:, idxs] = 1.0
     return one_hot

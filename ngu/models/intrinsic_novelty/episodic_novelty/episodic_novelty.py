@@ -88,8 +88,8 @@ class EpisodicNovelty:
         self.episodic_memory[self.memory_idx] = controllable_state.clone()
         self.memory_idx = (self.memory_idx + 1) % self.capacity
 
-    def step(self, timestep_seq):
-        self.embedding.step(timestep_seq)
+    def step(self, timestep_obs, timestep_next_obs, timestep_act):
+        self.embedding.step(timestep_obs, timestep_next_obs, timestep_act)
 
         self.update_count += 1
         self.logger.log_scalar('EpisodicNoveltyMean', self.epi_novel_rms.mean, self.update_count)

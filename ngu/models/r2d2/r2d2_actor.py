@@ -43,8 +43,8 @@ class R2D2Actor:
 
     def reset_hiddenstate_if_done(self, done):
         """If episode done, reset hidden state."""
-        self.policy.hx[done.squeeze(-1), :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
-        self.policy.cx[done.squeeze(-1), :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
+        self.policy.hx[done, :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
+        self.policy.cx[done, :] = torch.zeros(self.policy.hidden_units).to(ptu.device)
 
     @torch.no_grad()
     def get_eps_greedy_action(self, obs, prev_act, prev_int_rew, prev_ext_rew):
@@ -61,20 +61,20 @@ class R2D2Actor:
         action.unsqueeze_(-1)
         return action
 
-    def compute_nstep_reward(self, nstep_buffer, discount):
-        """Compute sum of n-step rewards in nstep_buffer.
+    def compute_nstep_reward(self, rews, seq_len, discount):
+        """Compute sum of n-step rewards.
 
         Args:
-            nstep_buffer: N_STEP x n_actors transitions.
-            discount: discount to compute n-step.
+            rews: Rewards to accumulate n-step.
+            discount: Discount factor of n-step.
         Returns:
             Sum of discounted n-step rewards.
         """
-        done_mask = nstep_buffer[0].done  # Mask for if it is done in the middle of n-step.
-        r_nstep = torch.zeros((self.n_actors, 1))
-        for i in range(self.model_hypr['n_step']):
-            done_mask = torch.logical_or(done_mask, nstep_buffer[i].done)
-            r_nstep += (discount**i) * (1.0 - done_mask.float()) * nstep_buffer[i].reward_augmented
+        batch_size = len(rews)
+        r_nstep = torch.zeros((batch_size, seq_len, 1))
+        for t in range(seq_len):
+            for i in range(self.model_hypr['n_step']):
+                r_nstep[:, t] += (discount**i) * rews[:, t + i]
         return r_nstep
 
     def _compute_exploration_factor(self):

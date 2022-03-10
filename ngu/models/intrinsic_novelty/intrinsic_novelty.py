@@ -36,21 +36,17 @@ class IntrinsicNovelty:
     def reset_memory_if_done(self, done):
         """Reset the agent's memory if it is done."""
         done = done.to(ptu.device)
-        self.epi_novel.episodic_memory[:, done.squeeze(-1), :] = torch.zeros(
+        self.epi_novel.episodic_memory[:, done, :] = torch.zeros(
             (self.epi_novel.capacity, 1, self.epi_novel.controllable_state_dim), device=ptu.device)
 
     def to(self, device):
         self.ll_novel.to(device)
         self.epi_novel.to(device)
 
-    def step(self, timestep_seq):
-        """Update parameters of intrinsic novelty.
-
-        Args:
-            timestep_seq: Last N frames of the sampled sequences to train the action prediction network and RND.
-        """
-        self.ll_novel.step(timestep_seq)
-        self.epi_novel.step(timestep_seq)
+    def step(self, timestep_obs, timestep_next_obs, timestep_act):
+        """Update parameters of intrinsic novelty."""
+        self.ll_novel.step(timestep_obs)
+        self.epi_novel.step(timestep_obs, timestep_next_obs, timestep_act)
         self.update_count += 1
 
         self.logger.log_scalar('IntrinsicNoveltyMean', self.intrinsic_novel_rms.mean,
